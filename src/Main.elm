@@ -2,18 +2,28 @@ module Main exposing (main)
 
 import Array2D exposing (Array2D, get, repeat, set)
 import Browser
-import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (disabled, style)
+import Html exposing (Html, div, text)
+import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
+import Html.Attributes exposing (class)
 
 
 main : Program () Model Msg
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.document
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = \_ -> Sub.none
+        }
 
 
 
 -- MODEL
+
+
+type alias Tile =
+    Char
 
 
 type alias Point =
@@ -30,8 +40,8 @@ type CellSelection
 
 type CellContents
     = Empty
-    | Preview Char
-    | Placed Char
+    | Preview Tile
+    | Placed Tile
 
 
 type alias CellProps =
@@ -56,7 +66,15 @@ swapDirection dir =
 
 
 type alias Tiles =
-    Array2D (Maybe Char)
+    Array2D (Maybe Tile)
+
+
+type alias Model =
+    { selectedCell : Point
+    , selectDirection : SelectDirection
+    , board : Tiles
+    , rack : List Tile
+    }
 
 
 placedTiles : Tiles
@@ -66,19 +84,15 @@ placedTiles =
         |> set 3 2 (Just 'I')
 
 
-type alias Model =
-    { selectedCell : Point
-    , selectDirection : SelectDirection
-    , tiles : Tiles
-    }
-
-
-init : Model
-init =
-    { selectedCell = Point 0 0
-    , selectDirection = Right
-    , tiles = placedTiles
-    }
+init : flags -> ( Model, Cmd msg )
+init _ =
+    ( { selectedCell = Point 0 0
+      , selectDirection = Right
+      , board = placedTiles
+      , rack = [ 'A', 'Z', 'B', 'D' ]
+      }
+    , Cmd.none
+    )
 
 
 
@@ -89,11 +103,11 @@ type Msg
     = Select Point
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case msg of
         Select point ->
-            { model
+            ( { model
                 | selectedCell = point
                 , selectDirection =
                     if model.selectedCell == point then
@@ -101,23 +115,35 @@ update msg model =
 
                     else
                         model.selectDirection
-            }
-
+              }
+            , Cmd.none
+            )
 
 
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    div []
-        [ viewGrid model
+    { body =
+        [ div []
+            [ viewGrid model
+            , viewRack model.rack
+            ]
         ]
+    , title = "Scrobburl"
+    }
 
 
 gridSize : number
 gridSize =
     5
+
+
+viewRack : List Tile -> Html msg
+viewRack rack =
+    div []
+        (rack |> List.map viewTile)
 
 
 viewGrid : Model -> Html Msg
@@ -146,9 +172,9 @@ getCellProps : Model -> Point -> CellProps
 getCellProps model point =
     { state = getCellState model point
     , contents =
-        case model.tiles |> get point.x point.y of
-            Just (Just char) ->
-                Placed char
+        case model.board |> get point.x point.y of
+            Just (Just tile) ->
+                Placed tile
 
             _ ->
                 Empty
@@ -182,26 +208,26 @@ viewCell : Point -> CellProps -> Html Msg
 viewCell point state =
     div
         [ onClick (Select point)
-        , style "border" "1px solid black"
-        , style "width" "50px"
-        , style "height" "50px"
-        , style "line-height" "50px"
+        , class "cell"
         , style "background-color" (cellColor state.state)
-        , style "text-align" "center"
-        , style "font-size" "2em"
         ]
-        [ text
-            (case state.contents of
-                Empty ->
-                    ""
+        [ case state.contents of
+            Empty ->
+                text ""
 
-                Placed char ->
-                    String.fromChar char
+            Placed tile ->
+                viewTile tile
 
-                Preview char ->
-                    String.fromChar char
-            )
+            Preview char ->
+                viewTile char
         ]
+
+
+viewTile : Tile -> Html msg
+viewTile tile =
+    div
+        [ class "tile"]
+        [ text (String.fromChar tile) ]
 
 
 cellColor : CellSelection -> String
