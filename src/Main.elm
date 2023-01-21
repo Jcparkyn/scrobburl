@@ -4,11 +4,8 @@ import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Browser
 import Html exposing (Html, button, div, main_, text)
-import Html.Attributes exposing (class, style)
+import Html.Attributes exposing (class, classList, disabled, style)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (disabled)
-import Html.Attributes exposing (attribute)
-import Html.Attributes exposing (classList)
 
 
 main : Program () Model Msg
@@ -31,7 +28,7 @@ type alias Tile =
 
 type alias RackTile =
     { tile : Tile
-    , used : Bool
+    , placement : Maybe Point
     }
 
 
@@ -86,7 +83,8 @@ type alias Model =
     { selectedCell : Point
     , selectDirection : SelectDirection
     , board : Tiles
-    , previewTiles : Tiles
+
+    -- , previewTiles : Tiles
     , rack : RackState
     }
 
@@ -103,10 +101,11 @@ init _ =
     ( { selectedCell = Point 0 0
       , selectDirection = Right
       , board = placedTiles
-      , previewTiles = Array2D.repeat 5 5 Nothing
+
+      --   , previewTiles = Array2D.repeat 5 5 Nothing
       , rack =
             [ 'A', 'Z', 'B', 'D' ]
-                |> List.map (\c -> RackTile c False)
+                |> List.map (\c -> RackTile c Nothing)
                 |> Array.fromList
       }
     , Cmd.none
@@ -124,9 +123,9 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
-    case msg of
+    case Debug.log "msg" msg of
         Select point ->
-            ( (withSelection model point)
+            ( withSelection model point
             , Cmd.none
             )
 
@@ -137,17 +136,33 @@ update msg model =
 withSelection : Model -> Point -> Model
 withSelection model point =
     case (getCellProps model point).contents of
-        Placed _ -> model
-        Preview _ -> model --TODO
+        Placed _ ->
+            model
+
+        Preview _ ->
+            { model
+                | selectedCell = point
+                , rack =
+                    model.rack
+                        |> Array.map
+                            (\tile ->
+                                if tile.placement == Just point then
+                                    { tile | placement = Nothing }
+
+                                else
+                                    tile
+                            )
+            }
+
         Empty ->
             { model
-            | selectedCell = point
-            , selectDirection =
-                if model.selectedCell == point then
-                    swapDirection model.selectDirection
+                | selectedCell = point
+                , selectDirection =
+                    if model.selectedCell == point then
+                        swapDirection model.selectDirection
 
-                else
-                    model.selectDirection
+                    else
+                        model.selectDirection
             }
 
 
@@ -157,14 +172,14 @@ withPlacedTile model rackIndex =
         { x, y } =
             model.selectedCell
 
-        tile =
-            model.rack
-                |> Array.get rackIndex
-                |> Maybe.map .tile
+        -- tile =
+        --     model.rack
+        --         |> Array.get rackIndex
+        --         |> Maybe.map .tile
     in
     { model
-        | previewTiles = model.previewTiles |> Array2D.set x y tile
-        , selectedCell =
+      -- | previewTiles = model.previewTiles |> Array2D.set x y tile
+        | selectedCell =
             case model.selectDirection of
                 Right ->
                     Point (x + 1) y
@@ -173,7 +188,7 @@ withPlacedTile model rackIndex =
                     Point x (y + 1)
         , rack =
             model.rack
-                |> updateElement rackIndex (\t -> { t | used = True })
+                |> updateElement rackIndex (\t -> { t | placement = Just model.selectedCell })
     }
 
 
@@ -219,13 +234,14 @@ viewRackTile index tile =
     button
         [ class "rack-tile"
         , onClick (PlaceTile index)
-        , disabled tile.used
+        , disabled (tile.placement /= Nothing)
         , style "opacity"
-            (if tile.used then
-                "0.5"
+            (case tile.placement of
+                Just _ ->
+                    "0.5"
 
-             else
-                "1"
+                Nothing ->
+                    "1"
             )
         ]
         [ viewTile tile.tile True ]
@@ -257,16 +273,30 @@ getCellProps : Model -> Point -> CellProps
 getCellProps model point =
     { state = getCellState model point
     , contents =
-        case model.board |> getCell point of
-            Just (Just tile) ->
-                Placed tile
-
-            _ ->
-                case model.previewTiles |> getCell point of
-                    Just (Just tile) ->
-                        Preview tile
-                    _ -> Empty
+        getCellContents model point
     }
+
+
+getCellContents : Model -> Point -> CellContents
+getCellContents model point =
+    case model.board |> getCell point of
+        Just (Just tile) ->
+            Placed tile
+
+        _ ->
+            let
+                previewTile =
+                    model.rack
+                        |> Array.toList
+                        |> List.filter (\tile -> tile.placement == Just point)
+                        |> List.head
+            in
+            case previewTile of
+                Just tile ->
+                    Preview tile.tile
+
+                _ ->
+                    Empty
 
 
 getCell : Point -> Array2D b -> Maybe b
@@ -319,8 +349,9 @@ viewCell point state =
 viewTile : Tile -> Bool -> Html msg
 viewTile tile isPreview =
     div
-        [ classList [("tile", True), ("preview-tile", isPreview)] ]
+        [ classList [ ( "tile", True ), ( "preview-tile", isPreview ) ] ]
         [ text (String.fromChar tile) ]
+
 
 cellColor : CellSelection -> String
 cellColor state =
