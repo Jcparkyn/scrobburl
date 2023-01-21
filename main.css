@@ -25,6 +25,10 @@
   background-color: #b0b0d8;
 }
 
+.preview-tile {
+  color: green;
+}
+
 .rack {
   border-bottom: 2px solid black;
   display: inline-flex;
