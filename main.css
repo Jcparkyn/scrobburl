@@ -1,8 +1,14 @@
 
+
 .cell {
   border: 1px solid black;
   width: 50px;
   height: 50px;
+}
+
+.cell:hover {
+  outline: 3px solid #666;
+  border-radius: 3px;
 }
 
 .tile {
@@ -11,6 +17,25 @@
   text-align: center;
   font-size: 35px;
   line-height: 50px;
-  background-color: lavender;
-  border-radius: 12px;
+  background-color: #e5e5fa;
+  border-radius: 16px;
+}
+
+.tile:hover {
+  background-color: #b0b0d8;
+}
+
+.rack {
+  border-bottom: 2px solid black;
+  display: inline-flex;
+  flex-direction: row;
+  padding: 4px;
+  user-select: none;
+}
+
+.rack-tile {
+  border: none;
+  background-color: transparent;
+  margin: 2px;
+  padding: 0
 }

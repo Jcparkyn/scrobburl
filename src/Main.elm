@@ -1,11 +1,12 @@
 module Main exposing (main)
 
+import Array exposing (Array)
 import Array2D exposing (Array2D, get, repeat, set)
 import Browser
-import Html exposing (Html, div, text)
-import Html.Attributes exposing (style)
+import Html exposing (Html, button, div, main_, text)
+import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (disabled)
 
 
 main : Program () Model Msg
@@ -24,6 +25,16 @@ main =
 
 type alias Tile =
     Char
+
+
+type alias RackTile =
+    { tile : Tile
+    , used : Bool
+    }
+
+
+type alias RackState =
+    Array RackTile
 
 
 type alias Point =
@@ -73,7 +84,7 @@ type alias Model =
     { selectedCell : Point
     , selectDirection : SelectDirection
     , board : Tiles
-    , rack : List Tile
+    , rack : RackState
     }
 
 
@@ -89,7 +100,10 @@ init _ =
     ( { selectedCell = Point 0 0
       , selectDirection = Right
       , board = placedTiles
-      , rack = [ 'A', 'Z', 'B', 'D' ]
+      , rack =
+            [ 'A', 'Z', 'B', 'D' ]
+                |> List.map (\c -> RackTile c False)
+                |> Array.fromList
       }
     , Cmd.none
     )
@@ -101,6 +115,7 @@ init _ =
 
 type Msg
     = Select Point
+    | PlaceTile Int
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
@@ -119,6 +134,46 @@ update msg model =
             , Cmd.none
             )
 
+        PlaceTile rackIndex ->
+            ( withPlacedTile model rackIndex, Cmd.none )
+
+
+withPlacedTile : Model -> Int -> Model
+withPlacedTile model rackIndex =
+    let
+        { x, y } =
+            model.selectedCell
+
+        tile =
+            model.rack
+                |> Array.get rackIndex
+                |> Maybe.map .tile
+    in
+    { model
+        | board = model.board |> Array2D.set x y tile
+        , selectedCell =
+            case model.selectDirection of
+                Right ->
+                    Point (x + 1) y
+
+                Down ->
+                    Point x (y + 1)
+        , rack =
+            model.rack
+                |> updateElement rackIndex (\t -> { t | used = True })
+    }
+
+
+updateElement : Int -> (a -> a) -> Array a -> Array a
+updateElement index fun array =
+    case Array.get index array of
+        Just value ->
+            array |> Array.set index (fun value)
+
+        Nothing ->
+            array
+
+
 
 -- VIEW
 
@@ -126,7 +181,7 @@ update msg model =
 view : Model -> Browser.Document Msg
 view model =
     { body =
-        [ div []
+        [ main_ []
             [ viewGrid model
             , viewRack model.rack
             ]
@@ -140,10 +195,27 @@ gridSize =
     5
 
 
-viewRack : List Tile -> Html msg
+viewRack : RackState -> Html Msg
 viewRack rack =
-    div []
-        (rack |> List.map viewTile)
+    div [ class "rack" ]
+        (rack |> Array.toList |> List.indexedMap viewRackTile)
+
+
+viewRackTile : Int -> RackTile -> Html Msg
+viewRackTile index tile =
+    button
+        [ class "rack-tile"
+        , onClick (PlaceTile index)
+        , disabled tile.used
+        , style "opacity"
+            (if tile.used then
+                "0.5"
+
+             else
+                "1"
+            )
+        ]
+        [ viewTile tile.tile ]
 
 
 viewGrid : Model -> Html Msg
@@ -172,13 +244,18 @@ getCellProps : Model -> Point -> CellProps
 getCellProps model point =
     { state = getCellState model point
     , contents =
-        case model.board |> get point.x point.y of
+        case model.board |> getCell point of
             Just (Just tile) ->
                 Placed tile
 
             _ ->
                 Empty
     }
+
+
+getCell : Point -> Array2D b -> Maybe b
+getCell point board =
+    board |> get point.x point.y
 
 
 getCellState : Model -> Point -> CellSelection
@@ -226,7 +303,7 @@ viewCell point state =
 viewTile : Tile -> Html msg
 viewTile tile =
     div
-        [ class "tile"]
+        [ class "tile" ]
         [ text (String.fromChar tile) ]
 
 
