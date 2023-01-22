@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Array exposing (Array)
-import Array2D exposing (Array2D)
+import Array2D
 import Browser
 import Checker exposing (isValidMove)
 import Data exposing (..)
@@ -157,6 +157,7 @@ view model =
     }
 
 
+viewPreviewScore : Model -> Html msg
 viewPreviewScore model =
     div []
         [ text

@@ -74,6 +74,12 @@ type alias Tiles =
     Array2D (Maybe Tile)
 
 
+getTileFromTiles : Point -> Tiles -> Maybe Tile
+getTileFromTiles point tiles =
+    Array2D.get point.x point.y tiles
+        |> Maybe.andThen identity
+
+
 type alias Model =
     { selectedCell : Point
     , selectDirection : SelectDirection

@@ -2,7 +2,7 @@ module Checker exposing (isValidMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
-import Data exposing (CellContents(..), Model, Point, Tile, getAllCellContents, getTile)
+import Data exposing (CellContents(..), Model, Point, getAllCellContents, getTile, getTileFromTiles)
 import List.Extra
 
 
@@ -23,16 +23,8 @@ isValidPlacement model =
                 |> Array.toList
                 |> List.filterMap .placement
 
-        placementLine =
-            getPlacementLine placements
-
         isPlaced point =
-            case Array2D.get point.x point.y model.board of
-                Just (Just _) ->
-                    True
-
-                _ ->
-                    False
+            getTileFromTiles point model.board /= Nothing
 
         isAnchored : Point -> Bool
         isAnchored point =
@@ -43,7 +35,7 @@ isValidPlacement model =
             ]
                 |> List.any isPlaced
     in
-    case placementLine of
+    case getPlacementLine placements of
         Just line ->
             line
                 |> List.map (\p -> { index = p.index, anchored = isAnchored p.pos })
@@ -104,7 +96,6 @@ isValidLine : Array CellContents -> Bool
 isValidLine line =
     line
         |> Array.toList
-        -- |> List.map (\cell -> if cell == Empty then Nothing else Just cell)
         |> List.map getTile
         |> splitByNothings
         |> List.all (String.fromList >> isValidWord)
