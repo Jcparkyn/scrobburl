@@ -24,9 +24,14 @@ main =
 -- MODEL
 
 
+gridSize : number
+gridSize =
+    9
+
+
 placedTiles : Tiles
 placedTiles =
-    Array2D.repeat 5 5 Nothing
+    Array2D.repeat gridSize gridSize Nothing
         |> Array2D.set 1 2 (Just 'A')
         |> Array2D.set 2 2 (Just 'B')
         |> Array2D.set 3 2 (Just 'C')
@@ -38,7 +43,7 @@ init _ =
       , selectDirection = Right
       , board = placedTiles
       , rack =
-            [ 'A', 'Z', 'B', 'D' ]
+            [ 'A', 'Z', 'B', 'D', 'O', 'Y', 'I' ]
                 |> List.map (\c -> RackTile c Nothing)
                 |> Array.fromList
       }
@@ -152,11 +157,6 @@ view model =
     }
 
 
-gridSize : number
-gridSize =
-    5
-
-
 viewPreviewScore model =
     div []
         [ text
@@ -196,10 +196,7 @@ viewRackTile index tile =
 viewGrid : Model -> Html Msg
 viewGrid model =
     div
-        [ style "display" "grid"
-        , style "grid-template-columns" "50px 50px 50px 50px 50px"
-        , style "user-select" "none"
-        ]
+        [ class "grid" ]
         (pointGrid gridSize
             |> List.map (\point -> viewCell point (getCellProps model point))
         )
