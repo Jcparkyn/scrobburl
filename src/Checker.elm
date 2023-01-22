@@ -1,4 +1,4 @@
-module Checker exposing (isValidMove)
+module Checker exposing (getAllLines, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
@@ -6,12 +6,28 @@ import Data exposing (CellContents(..), Model, Point, getAllCellContents, getTil
 import List.Extra
 
 
-isValidMove : Model -> Bool
-isValidMove model =
-    isValidPlacement model
-        && (getAllLines (getAllCellContents model)
-                |> List.all isValidLine
-           )
+scoreMove : Model -> Maybe Int
+scoreMove model =
+    if isValidPlacement model then
+        getAllLines (getAllCellContents model)
+            |> List.map scoreLine
+            |> sumScores
+
+    else
+        Nothing
+
+
+sumScores : List (Maybe Int) -> Maybe Int
+sumScores scores =
+    let
+        validScores =
+            List.filterMap identity scores
+    in
+    if List.length scores == List.length validScores then
+        Just (List.sum validScores)
+
+    else
+        Nothing
 
 
 isValidPlacement : Model -> Bool
@@ -86,19 +102,20 @@ getAllLines grid =
 
         columns =
             List.range 0 (grid.columns - 1)
-                |> List.map (\row -> Array2D.getRow row grid)
+                |> List.map (\col -> Array2D.getColumn col grid)
                 |> List.filterMap identity
     in
     rows ++ columns
 
 
-isValidLine : Array CellContents -> Bool
-isValidLine line =
+scoreLine : Array CellContents -> Maybe Int
+scoreLine line =
     line
         |> Array.toList
         |> List.map getTile
         |> splitByNothings
-        |> List.all (String.fromList >> isValidWord)
+        |> List.map (String.fromList >> scoreWord)
+        |> sumScores
 
 
 splitByNothings : List (Maybe a) -> List (List a)
@@ -118,10 +135,17 @@ splitByNothings list =
         |> List.filter (List.isEmpty >> not)
 
 
-isValidWord : String -> Bool
-isValidWord word =
+scoreWord : String -> Maybe Int
+scoreWord word =
     let
         len =
             String.length word
     in
-    len == 1 || (len > 2 && String.length word < 5)
+    if len == 1 then
+        Just 0
+
+    else if len > 2 && String.length word < 5 then
+        Just len
+
+    else
+        Nothing

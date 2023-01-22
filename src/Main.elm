@@ -3,7 +3,7 @@ module Main exposing (..)
 import Array exposing (Array)
 import Array2D
 import Browser
-import Checker exposing (isValidMove)
+import Checker exposing (scoreMove)
 import Data exposing (..)
 import Html exposing (Html, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, style)
@@ -161,11 +161,12 @@ viewPreviewScore : Model -> Html msg
 viewPreviewScore model =
     div []
         [ text
-            (if isValidMove model then
-                "Hell yeah"
+            (case scoreMove model of
+                Just score ->
+                    "Hell yeah " ++ String.fromInt score
 
-             else
-                "Nah homie"
+                Nothing ->
+                    "Nah homie"
             )
         ]
 
