@@ -3,6 +3,7 @@ module Main exposing (main)
 import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Browser
+import Data exposing (..)
 import Html exposing (Html, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, style)
 import Html.Events exposing (onClick)
@@ -22,73 +23,6 @@ main =
 -- MODEL
 
 
-type alias Tile =
-    Char
-
-
-type alias RackTile =
-    { tile : Tile
-    , placement : Maybe Point
-    }
-
-
-type alias RackState =
-    Array RackTile
-
-
-type alias Point =
-    { x : Int
-    , y : Int
-    }
-
-
-type CellSelection
-    = Selected
-    | Highlight
-    | Inactive
-
-
-type CellContents
-    = Empty
-    | Preview Tile
-    | Placed Tile
-
-
-type alias CellProps =
-    { state : CellSelection
-    , contents : CellContents
-    }
-
-
-type SelectDirection
-    = Right
-    | Down
-
-
-swapDirection : SelectDirection -> SelectDirection
-swapDirection dir =
-    case dir of
-        Right ->
-            Down
-
-        Down ->
-            Right
-
-
-type alias Tiles =
-    Array2D (Maybe Tile)
-
-
-type alias Model =
-    { selectedCell : Point
-    , selectDirection : SelectDirection
-    , board : Tiles
-
-    -- , previewTiles : Tiles
-    , rack : RackState
-    }
-
-
 placedTiles : Tiles
 placedTiles =
     Array2D.repeat 5 5 Nothing
@@ -101,8 +35,6 @@ init _ =
     ( { selectedCell = Point 0 0
       , selectDirection = Right
       , board = placedTiles
-
-      --   , previewTiles = Array2D.repeat 5 5 Nothing
       , rack =
             [ 'A', 'Z', 'B', 'D' ]
                 |> List.map (\c -> RackTile c Nothing)
@@ -171,14 +103,8 @@ withPlacedTile model rackIndex =
     let
         { x, y } =
             model.selectedCell
-
-        -- tile =
-        --     model.rack
-        --         |> Array.get rackIndex
-        --         |> Maybe.map .tile
     in
     { model
-      -- | previewTiles = model.previewTiles |> Array2D.set x y tile
         | selectedCell =
             case model.selectDirection of
                 Right ->
