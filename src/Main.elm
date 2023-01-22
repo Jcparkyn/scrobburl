@@ -1,8 +1,9 @@
-module Main exposing (main)
+module Main exposing (..)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Browser
+import Checker exposing (isValidMove)
 import Data exposing (..)
 import Html exposing (Html, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, style)
@@ -26,8 +27,9 @@ main =
 placedTiles : Tiles
 placedTiles =
     Array2D.repeat 5 5 Nothing
-        |> Array2D.set 2 2 (Just 'N')
-        |> Array2D.set 3 2 (Just 'I')
+        |> Array2D.set 1 2 (Just 'A')
+        |> Array2D.set 2 2 (Just 'B')
+        |> Array2D.set 3 2 (Just 'C')
 
 
 init : flags -> ( Model, Cmd msg )
@@ -100,22 +102,27 @@ withSelection model point =
 
 withPlacedTile : Model -> Int -> Model
 withPlacedTile model rackIndex =
-    let
-        { x, y } =
-            model.selectedCell
-    in
-    { model
-        | selectedCell =
-            case model.selectDirection of
-                Right ->
-                    Point (x + 1) y
+    case (getCellProps model model.selectedCell).contents of
+        Placed _ ->
+            model
 
-                Down ->
-                    Point x (y + 1)
-        , rack =
-            model.rack
-                |> updateElement rackIndex (\t -> { t | placement = Just model.selectedCell })
-    }
+        _ ->
+            let
+                { x, y } =
+                    model.selectedCell
+            in
+            { model
+                | selectedCell =
+                    case model.selectDirection of
+                        Right ->
+                            Point (x + 1) y
+
+                        Down ->
+                            Point x (y + 1)
+                , rack =
+                    model.rack
+                        |> updateElement rackIndex (\t -> { t | placement = Just model.selectedCell })
+            }
 
 
 updateElement : Int -> (a -> a) -> Array a -> Array a
@@ -136,7 +143,8 @@ view : Model -> Browser.Document Msg
 view model =
     { body =
         [ main_ []
-            [ viewGrid model
+            [ viewPreviewScore model
+            , viewGrid model
             , viewRack model.rack
             ]
         ]
@@ -147,6 +155,18 @@ view model =
 gridSize : number
 gridSize =
     5
+
+
+viewPreviewScore model =
+    div []
+        [ text
+            (if isValidMove model then
+                "Hell yeah"
+
+             else
+                "Nah homie"
+            )
+        ]
 
 
 viewRack : RackState -> Html Msg
@@ -201,33 +221,6 @@ getCellProps model point =
     , contents =
         getCellContents model point
     }
-
-
-getCellContents : Model -> Point -> CellContents
-getCellContents model point =
-    case model.board |> getCell point of
-        Just (Just tile) ->
-            Placed tile
-
-        _ ->
-            let
-                previewTile =
-                    model.rack
-                        |> Array.toList
-                        |> List.filter (\tile -> tile.placement == Just point)
-                        |> List.head
-            in
-            case previewTile of
-                Just tile ->
-                    Preview tile.tile
-
-                _ ->
-                    Empty
-
-
-getCell : Point -> Array2D b -> Maybe b
-getCell point board =
-    board |> Array2D.get point.x point.y
 
 
 getCellState : Model -> Point -> CellSelection
