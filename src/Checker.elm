@@ -112,9 +112,21 @@ scoreLine : Array CellContents -> Maybe Int
 scoreLine line =
     line
         |> Array.toList
-        |> List.map getTile
+        |> List.map
+            (\cell ->
+                case cell of
+                    Preview tile ->
+                        Just { tile = tile, isPreview = True }
+
+                    Placed tile ->
+                        Just { tile = tile, isPreview = False }
+
+                    _ ->
+                        Nothing
+            )
         |> splitByNothings
-        |> List.map (String.fromList >> scoreWord)
+        |> List.filter (List.any .isPreview)
+        |> List.map (List.map .tile >> String.fromList >> scoreWord)
         |> sumScores
 
 
