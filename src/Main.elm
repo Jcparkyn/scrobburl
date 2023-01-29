@@ -7,16 +7,20 @@ import Checker exposing (scoreMove)
 import Data exposing (..)
 import Html exposing (Html, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, style)
+import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
+import Url
 
 
 main : Program () Model Msg
 main =
-    Browser.document
+    Browser.application
         { init = init
-        , update = update
         , view = view
+        , update = update
         , subscriptions = \_ -> Sub.none
+        , onUrlChange = UrlChanged
+        , onUrlRequest = LinkClicked
         }
 
 
@@ -37,8 +41,12 @@ placedTiles =
         |> Array2D.set 3 2 (Just 'C')
 
 
-init : flags -> ( Model, Cmd msg )
-init _ =
+init : flags -> Url.Url -> key -> ( Model, Cmd msg )
+init _ url _ =
+    let
+        _ =
+            Debug.log "URL" url
+    in
     ( { selectedCell = Point 0 0
       , selectDirection = Right
       , board = placedTiles
@@ -64,6 +72,8 @@ init _ =
 type Msg
     = Select Point
     | PlaceTile Int
+    | LinkClicked Browser.UrlRequest
+    | UrlChanged Url.Url
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
@@ -76,6 +86,9 @@ update msg model =
 
         PlaceTile rackIndex ->
             ( withPlacedTile model rackIndex, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
 
 
 withSelection : Model -> Point -> Model
