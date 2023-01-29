@@ -46,6 +46,12 @@ init _ =
             [ 'A', 'Z', 'B', 'D', 'O', 'Y', 'I' ]
                 |> List.map (\c -> RackTile c Nothing)
                 |> Array.fromList
+      , opponent =
+            { name = "Jeff"
+            , score = 21
+            }
+      , selfName = "Bob"
+      , selfScore = 69
       }
     , Cmd.none
     )
@@ -148,7 +154,7 @@ view : Model -> Browser.Document Msg
 view model =
     { body =
         [ main_ []
-            [ viewPreviewScore model
+            [ viewScoreHeader model
             , viewGrid model
             , viewRack model.rack
             ]
@@ -157,16 +163,29 @@ view model =
     }
 
 
-viewPreviewScore : Model -> Html msg
-viewPreviewScore model =
-    div []
-        [ text
+viewScoreHeader : Model -> Html msg
+viewScoreHeader model =
+    div [ style "grid-area" "score-header" ]
+        [ div [ style "display" "flex" ]
+            [ div [ style "flex" "1" ]
+                [ text "You: "
+                , text (String.fromInt model.selfScore)
+                , text " points"
+                ]
+            , div [ style "flex" "1", style "text-align" "right" ]
+                [ text model.selfName
+                , text ": "
+                , text (String.fromInt model.opponent.score)
+                , text " points"
+                ]
+            ]
+        , text
             (case scoreMove model of
                 Just score ->
-                    "Hell yeah " ++ String.fromInt score
+                    "Move: " ++ String.fromInt score ++ " points"
 
                 Nothing ->
-                    "Nah homie"
+                    "Not a valid move"
             )
         ]
 

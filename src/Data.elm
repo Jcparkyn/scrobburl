@@ -80,11 +80,20 @@ getTileFromTiles point tiles =
         |> Maybe.andThen identity
 
 
+type alias Opponent =
+    { name : String
+    , score : Int
+    }
+
+
 type alias Model =
     { selectedCell : Point
     , selectDirection : SelectDirection
     , board : Tiles
     , rack : RackState
+    , opponent : Opponent
+    , selfName : String
+    , selfScore : Int
     }
 
 
