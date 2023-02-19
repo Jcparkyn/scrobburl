@@ -86,7 +86,12 @@ type alias Opponent =
     }
 
 
-type alias Model =
+type Model
+    = Playing PlayingModel
+    | Played PlayingModel String
+
+
+type alias PlayingModel =
     { selectedCell : Point
     , selectDirection : SelectDirection
     , board : Tiles
@@ -97,7 +102,7 @@ type alias Model =
     }
 
 
-getCellContents : Model -> Point -> CellContents
+getCellContents : PlayingModel -> Point -> CellContents
 getCellContents model point =
     case model.board |> Array2D.get point.x point.y of
         Just (Just tile) ->
@@ -119,7 +124,7 @@ getCellContents model point =
                     Empty
 
 
-getAllCellContents : Model -> Array2D CellContents
+getAllCellContents : PlayingModel -> Array2D CellContents
 getAllCellContents model =
     let
         initialBoard =

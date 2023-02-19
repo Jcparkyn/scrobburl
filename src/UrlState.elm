@@ -1,6 +1,6 @@
 module UrlState exposing (getNextUrl)
 
-import Data exposing (Model, Point)
+import Data exposing (Point)
 import Json.Encode as E
 import Url
 

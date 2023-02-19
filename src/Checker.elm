@@ -2,11 +2,11 @@ module Checker exposing (getAllLines, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
-import Data exposing (CellContents(..), Model, Point, getAllCellContents, getTile, getTileFromTiles)
+import Data exposing (CellContents(..), PlayingModel, Point, getAllCellContents, getTileFromTiles)
 import List.Extra
 
 
-scoreMove : Model -> Maybe Int
+scoreMove : PlayingModel -> Maybe Int
 scoreMove model =
     if isValidPlacement model then
         getAllLines (getAllCellContents model)
@@ -30,7 +30,7 @@ sumScores scores =
         Nothing
 
 
-isValidPlacement : Model -> Bool
+isValidPlacement : PlayingModel -> Bool
 isValidPlacement model =
     let
         placements : List Point

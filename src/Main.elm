@@ -47,20 +47,21 @@ init _ url _ =
         _ =
             Debug.log "URL" url
     in
-    ( { selectedCell = Point 0 0
-      , selectDirection = Right
-      , board = placedTiles
-      , rack =
+    ( Playing
+        { selectedCell = Point 0 0
+        , selectDirection = Right
+        , board = placedTiles
+        , rack =
             [ 'A', 'Z', 'B', 'D', 'O', 'Y', 'I' ]
                 |> List.map (\c -> RackTile c Nothing)
                 |> Array.fromList
-      , opponent =
+        , opponent =
             { name = "Jeff"
             , score = 21
             }
-      , selfName = "Bob"
-      , selfScore = 69
-      }
+        , selfName = "Bob"
+        , selfScore = 69
+        }
     , Cmd.none
     )
 
@@ -72,26 +73,40 @@ init _ url _ =
 type Msg
     = Select Point
     | PlaceTile Int
+    | SubmitTurn
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
-    case Debug.log "msg" msg of
-        Select point ->
-            ( withSelection model point
-            , Cmd.none
-            )
-
-        PlaceTile rackIndex ->
-            ( withPlacedTile model rackIndex, Cmd.none )
+    case model of
+        Playing model_ ->
+            updatePlaying msg model_
 
         _ ->
             ( model, Cmd.none )
 
 
-withSelection : Model -> Point -> Model
+updatePlaying : Msg -> PlayingModel -> ( Model, Cmd msg )
+updatePlaying msg model =
+    case Debug.log "msg" msg of
+        Select point ->
+            ( Playing (withSelection model point)
+            , Cmd.none
+            )
+
+        PlaceTile rackIndex ->
+            ( Playing (withPlacedTile model rackIndex), Cmd.none )
+
+        SubmitTurn ->
+            ( Played model "hellyeah", Cmd.none )
+
+        _ ->
+            ( Playing model, Cmd.none )
+
+
+withSelection : PlayingModel -> Point -> PlayingModel
 withSelection model point =
     case (getCellProps model point).contents of
         Placed _ ->
@@ -124,7 +139,7 @@ withSelection model point =
             }
 
 
-withPlacedTile : Model -> Int -> Model
+withPlacedTile : PlayingModel -> Int -> PlayingModel
 withPlacedTile model rackIndex =
     case (getCellProps model model.selectedCell).contents of
         Placed _ ->
@@ -166,17 +181,22 @@ updateElement index fun array =
 view : Model -> Browser.Document Msg
 view model =
     { body =
-        [ main_ []
-            [ viewScoreHeader model
-            , viewGrid model
-            , viewRack model.rack
-            ]
-        ]
+        case model of
+            Playing model_ ->
+                [ main_ []
+                    [ viewScoreHeader model_
+                    , viewGrid model_
+                    , viewRack model_.rack
+                    ]
+                ]
+
+            Played _ newUrl ->
+                [ text newUrl ]
     , title = "Scrobburl"
     }
 
 
-viewScoreHeader : Model -> Html msg
+viewScoreHeader : PlayingModel -> Html Msg
 viewScoreHeader model =
     div [ style "grid-area" "score-header" ]
         [ div [ style "display" "flex" ]
@@ -192,14 +212,15 @@ viewScoreHeader model =
                 , text " points"
                 ]
             ]
-        , text
-            (case scoreMove model of
-                Just score ->
-                    "Move: " ++ String.fromInt score ++ " points"
+        , case scoreMove model of
+            Just score ->
+                div []
+                    [ text ("Move: " ++ String.fromInt score ++ " points")
+                    , button [ onClick SubmitTurn ] [ text "Submit" ]
+                    ]
 
-                Nothing ->
-                    "Not a valid move"
-            )
+            Nothing ->
+                text "Not a valid move"
         ]
 
 
@@ -227,7 +248,7 @@ viewRackTile index tile =
         [ viewTile tile.tile True ]
 
 
-viewGrid : Model -> Html Msg
+viewGrid : PlayingModel -> Html Msg
 viewGrid model =
     div
         [ class "grid" ]
@@ -246,7 +267,7 @@ pointGrid size =
             )
 
 
-getCellProps : Model -> Point -> CellProps
+getCellProps : PlayingModel -> Point -> CellProps
 getCellProps model point =
     { state = getCellState model point
     , contents =
@@ -254,7 +275,7 @@ getCellProps model point =
     }
 
 
-getCellState : Model -> Point -> CellSelection
+getCellState : PlayingModel -> Point -> CellSelection
 getCellState model point =
     if model.selectedCell == point then
         Selected
