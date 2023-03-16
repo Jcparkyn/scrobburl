@@ -5,11 +5,13 @@ import Array2D
 import Browser
 import Checker exposing (scoreMove)
 import Data exposing (..)
-import Html exposing (Html, button, div, main_, text)
-import Html.Attributes exposing (class, classList, disabled, style)
+import Html exposing (Html, a, button, div, main_, text)
+import Html.Attributes exposing (class, classList, disabled, href, style)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
+import Maybe exposing (withDefault)
 import Url
+import UrlState exposing (getNextUrl)
 
 
 main : Program () Model Msg
@@ -61,10 +63,10 @@ init _ url _ =
             }
         , selfName = "Bob"
         , selfScore = 69
+        , playedTurns = []
         }
     , Cmd.none
     )
-
 
 
 -- UPDATE
@@ -87,6 +89,19 @@ update msg model =
         _ ->
             ( model, Cmd.none )
 
+getUrlModel : PlayingModel -> UrlState.UrlModel
+getUrlModel model =
+    { turns = PlayedTurn [] :: model.playedTurns
+    , nextPlayer =
+        { name = "next"
+        , score = 2
+        }
+    , lastPlayer =
+        { name = "last"
+        , score = 69
+        }
+    }
+
 
 updatePlaying : Msg -> PlayingModel -> ( Model, Cmd msg )
 updatePlaying msg model =
@@ -100,7 +115,11 @@ updatePlaying msg model =
             ( Playing (withPlacedTile model rackIndex), Cmd.none )
 
         SubmitTurn ->
-            ( Played model "hellyeah", Cmd.none )
+            let
+                nextUrl =
+                    getNextUrl (getUrlModel model)
+            in
+            ( Played model nextUrl, Cmd.none )
 
         _ ->
             ( Playing model, Cmd.none )
@@ -191,7 +210,7 @@ view model =
                 ]
 
             Played _ newUrl ->
-                [ text newUrl ]
+                [ a [ href newUrl ] [ text (Url.percentDecode newUrl |> withDefault "") ] ]
     , title = "Scrobburl"
     }
 

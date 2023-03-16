@@ -99,6 +99,7 @@ type alias PlayingModel =
     , opponent : Opponent
     , selfName : String
     , selfScore : Int
+    , playedTurns : List PlayedTurn
     }
 
 
@@ -142,3 +143,7 @@ getAllCellContents model =
         )
         initialBoard
         model.rack
+
+
+type PlayedTurn
+    = PlayedTurn (List { rackIndex : Int, position : Point })
