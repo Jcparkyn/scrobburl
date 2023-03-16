@@ -46,6 +46,13 @@ encodePlayer player =
         ]
 
 
+decodePlayer : Decoder UrlPlayer
+decodePlayer =
+    D.map2 UrlPlayer
+        (D.field "name" D.string)
+        (D.field "score" D.int)
+
+
 encodePoint : Point -> String
 encodePoint { x, y } =
     String.fromInt x ++ "," ++ String.fromInt y
@@ -67,29 +74,27 @@ decodeTurn : Decoder PlayedTurn
 decodeTurn =
     let
         decodePlacement p =
-            case String.split "," p of
-                [ a, b, c ] ->
-                    { rackIndex = 0
-                    , position = Point 0 0
+            case String.split "," p |> List.map String.toInt of
+                [ Just a, Just b, Just c ] ->
+                    { rackIndex = a
+                    , position = Point b c
                     }
 
                 _ ->
                     { rackIndex = 0
                     , position = Point 0 0
                     }
-
-        -- D.map2
-        --     (\rackIndex position -> { rackIndex = rackIndex, position = position })
-        --     (D.field "rackIndex")
     in
-    (D.list D.string)
-        |> D.map (\z -> z)
+    D.list D.string
+        |> D.map (\z -> PlayedTurn (List.map decodePlacement z))
 
 
 decodeModel : Decoder UrlModel
 decodeModel =
     D.map3 UrlModel
-        (D.field "turns" D.array)
+        (D.field "turns" (D.list decodeTurn))
+        (D.field "nextPlayer" decodePlayer)
+        (D.field "lastPlayer" decodePlayer)
 
 
 decodeUrl : Url.Url -> Maybe UrlModel
