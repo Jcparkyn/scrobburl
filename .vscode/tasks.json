@@ -6,8 +6,12 @@
     {
       "label": "start dev server",
       "type": "shell",
-      "command": "elm-live src/Main.elm -- --output=main.js",
-      "problemMatcher": []
+      "command": "npx elm-live src/Main.elm -- --output=main.js",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     }
   ]
 }
