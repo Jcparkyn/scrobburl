@@ -46,7 +46,7 @@ initialBoard =
 
 initialRack : Array Tile
 initialRack =
-    Array.repeat 7 'v'
+    Array.fromList [ 'A', 'X', 'B', 'L', 'D', 'E', 'I' ]
 
 
 init : flags -> Url.Url -> key -> ( Model, Cmd msg )
@@ -112,11 +112,11 @@ modelToUrlModel model =
                 |> List.filterMap (\x -> x)
     in
     { turns = PlayedTurn nextTurn :: model.playedTurns
-    , nextPlayer =
+    , lastPlayer =
         { name = model.selfName
         , score = model.selfScore
         }
-    , lastPlayer =
+    , nextPlayer =
         { name = model.opponent.name
         , score = model.opponent.score
         }
@@ -170,7 +170,7 @@ urlModelToModel model =
             PostTurnGameState initialBoard { rack = initialRack } { rack = initialRack }
 
         finalState =
-            List.foldl getNextGameState initialState model.turns
+            List.foldr getNextGameState initialState model.turns
     in
     { selectedCell = Point 0 0
     , selectDirection = Right
@@ -295,7 +295,7 @@ viewScoreHeader model =
     div [ style "grid-area" "score-header" ]
         [ div [ style "display" "flex" ]
             [ div [ style "flex" "1" ]
-                [ text "You: "
+                [ text ("You (" ++ model.selfName ++ "): ")
                 , text (String.fromInt model.selfScore)
                 , text " points"
                 ]
