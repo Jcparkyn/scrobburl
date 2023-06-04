@@ -88,7 +88,6 @@ type alias Opponent =
 
 type Model
     = Playing PlayingModel
-    | Played PlayingModel String
 
 
 type alias PlayingModel =

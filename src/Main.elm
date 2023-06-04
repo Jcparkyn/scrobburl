@@ -41,7 +41,7 @@ initialBoard =
     Array2D.repeat gridSize gridSize Nothing
         |> Array2D.set 1 2 (Just 'A')
         |> Array2D.set 2 2 (Just 'B')
-        |> Array2D.set 3 2 (Just 'D')
+        |> Array2D.set 3 2 (Just 'C')
 
 
 initialRack : Array Tile
@@ -88,7 +88,6 @@ init _ url _ =
 type Msg
     = Select Point
     | PlaceTile Int
-    | SubmitTurn
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
 
@@ -98,9 +97,6 @@ update msg model =
     case model of
         Playing model_ ->
             updatePlaying msg model_
-
-        _ ->
-            ( model, Cmd.none )
 
 
 modelToUrlModel : PlayingModel -> UrlState.UrlModel
@@ -200,13 +196,6 @@ updatePlaying msg model =
         PlaceTile rackIndex ->
             ( Playing (withPlacedTile model rackIndex), Cmd.none )
 
-        SubmitTurn ->
-            let
-                nextUrl =
-                    getNextUrl (modelToUrlModel model)
-            in
-            ( Played model nextUrl, Cmd.none )
-
         _ ->
             ( Playing model, Cmd.none )
 
@@ -294,9 +283,6 @@ view model =
                     , viewRack model_.rack
                     ]
                 ]
-
-            Played _ newUrl ->
-                [ a [ href newUrl ] [ text (Url.percentDecode newUrl |> withDefault "") ] ]
     , title = "Scrobburl"
     }
 
@@ -319,9 +305,13 @@ viewScoreHeader model =
             ]
         , case scoreMove model of
             Just score ->
+                let
+                    nextUrl =
+                        getNextUrl (modelToUrlModel model)
+                in
                 div []
-                    [ text ("Move: " ++ String.fromInt score ++ " points")
-                    , button [ onClick SubmitTurn ] [ text "Submit" ]
+                    [ text ("Move: " ++ String.fromInt score ++ " points. ")
+                    , a [ href nextUrl ] [ text "Next turn" ]
                     ]
 
             Nothing ->
