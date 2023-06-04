@@ -2,7 +2,7 @@ module Checker exposing (getAllLines, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
-import Data exposing (CellContents(..), PlayingModel, Point, getAllCellContents, getTileFromTiles)
+import Data exposing (CellContents(..), PlayedTurn, PlayingModel, Point, getAllCellContents, getTileFromTiles)
 import List.Extra
 
 

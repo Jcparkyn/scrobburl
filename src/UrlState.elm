@@ -1,11 +1,11 @@
-module UrlState exposing (UrlModel, getNextUrl)
+module UrlState exposing (UrlModel, decodeUrl, getNextUrl)
 
 import Data exposing (PlayedTurn(..), Point)
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
 import Url
 import Url.Builder
-import Url.Parser exposing ((<?>))
+import Url.Parser
 import Url.Parser.Query
 
 
@@ -104,21 +104,13 @@ decodeUrl url =
             Url.Parser.query (Url.Parser.Query.string "state")
 
         stateJson =
-            Url.Parser.parse route url |> Maybe.withDefault Nothing
+            Url.Parser.parse route url
+                |> Maybe.withDefault Nothing
     in
     case stateJson of
         Just json ->
-            Just
-                { turns = []
-                , nextPlayer =
-                    { name = "next"
-                    , score = 2
-                    }
-                , lastPlayer =
-                    { name = "last"
-                    , score = 69
-                    }
-                }
+            D.decodeString decodeModel json
+                |> Result.toMaybe
 
         _ ->
             Nothing

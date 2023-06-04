@@ -9,9 +9,10 @@ import Html exposing (Html, a, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, href, style)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
+import List.Extra exposing (removeIfIndex)
 import Maybe exposing (withDefault)
 import Url
-import UrlState exposing (getNextUrl)
+import UrlState exposing (decodeUrl, getNextUrl)
 
 
 main : Program () Model Msg
@@ -35,12 +36,17 @@ gridSize =
     9
 
 
-placedTiles : Tiles
-placedTiles =
+initialBoard : Tiles
+initialBoard =
     Array2D.repeat gridSize gridSize Nothing
         |> Array2D.set 1 2 (Just 'A')
         |> Array2D.set 2 2 (Just 'B')
-        |> Array2D.set 3 2 (Just 'C')
+        |> Array2D.set 3 2 (Just 'D')
+
+
+initialRack : Array Tile
+initialRack =
+    Array.repeat 7 'v'
 
 
 init : flags -> Url.Url -> key -> ( Model, Cmd msg )
@@ -49,24 +55,31 @@ init _ url _ =
         _ =
             Debug.log "URL" url
     in
-    ( Playing
-        { selectedCell = Point 0 0
-        , selectDirection = Right
-        , board = placedTiles
-        , rack =
-            [ 'A', 'Z', 'B', 'D', 'O', 'Y', 'I' ]
-                |> List.map (\c -> RackTile c Nothing)
-                |> Array.fromList
-        , opponent =
-            { name = "Jeff"
-            , score = 21
-            }
-        , selfName = "Bob"
-        , selfScore = 69
-        , playedTurns = []
-        }
-    , Cmd.none
-    )
+    case Debug.log "URL model" (decodeUrl url) of
+        Just model ->
+            ( Playing (urlModelToModel model)
+            , Cmd.none
+            )
+
+        _ ->
+            ( Playing
+                { selectedCell = Point 0 0
+                , selectDirection = Right
+                , board = initialBoard
+                , rack =
+                    initialRack
+                        |> Array.map (\c -> RackTile c Nothing)
+                , opponent =
+                    { name = "Jeff"
+                    , score = 21
+                    }
+                , selfName = "Bob"
+                , selfScore = 69
+                , playedTurns = []
+                }
+            , Cmd.none
+            )
+
 
 
 -- UPDATE
@@ -89,17 +102,90 @@ update msg model =
         _ ->
             ( model, Cmd.none )
 
-getUrlModel : PlayingModel -> UrlState.UrlModel
-getUrlModel model =
-    { turns = PlayedTurn [] :: model.playedTurns
+
+modelToUrlModel : PlayingModel -> UrlState.UrlModel
+modelToUrlModel model =
+    let
+        nextTurn =
+            model.rack
+                -- TODO
+                |> Array.indexedMap (\index t -> { rackIndex = index, position = t.placement |> Maybe.withDefault (Point 0 0) })
+                |> Array.toList
+    in
+    { turns = PlayedTurn nextTurn :: model.playedTurns
     , nextPlayer =
-        { name = "next"
-        , score = 2
+        { name = model.selfName
+        , score = model.selfScore
         }
     , lastPlayer =
-        { name = "last"
-        , score = 69
+        { name = model.opponent.name
+        , score = model.opponent.score
         }
+    }
+
+
+type alias PostTurnGameState =
+    { board : Tiles
+    , nextPlayer : { rack : Array Tile }
+    , lastPlayer : { rack : Array Tile }
+    }
+
+
+getNextGameState : PlayedTurn -> PostTurnGameState -> PostTurnGameState
+getNextGameState turn state =
+    -- TODO: This should check that the move is valid
+    let
+        boardWithPlacement placement board =
+            let
+                tile =
+                    state.nextPlayer.rack |> Array.get placement.rackIndex
+            in
+            board
+                |> Array2D.set placement.position.x placement.position.y tile
+    in
+    case turn of
+        PlayedTurn placements ->
+            let
+                rackIndices =
+                    List.map .rackIndex placements
+            in
+            { board =
+                List.foldl boardWithPlacement state.board placements
+            , nextPlayer = state.lastPlayer
+            , lastPlayer =
+                -- TODO: Add new tiles
+                { rack =
+                    state.nextPlayer.rack
+                        |> Array.toList
+                        |> removeIfIndex (\i -> List.member i rackIndices)
+                        |> Array.fromList
+                }
+            }
+
+
+urlModelToModel : UrlState.UrlModel -> PlayingModel
+urlModelToModel model =
+    let
+        initialState =
+            -- TODO: Real initial values
+            PostTurnGameState initialBoard { rack = initialRack } { rack = initialRack }
+
+        finalState =
+            List.foldl getNextGameState initialState model.turns
+    in
+    { selectedCell = Point 0 0
+    , selectDirection = Right
+    , board = finalState.board
+    , rack =
+        finalState.nextPlayer.rack
+            |> Array.map (\tile -> RackTile tile Nothing)
+    , opponent =
+        { name = model.lastPlayer.name
+        , score = model.lastPlayer.score
+        }
+    , selfName = model.nextPlayer.name
+    , selfScore = model.nextPlayer.score
+    , playedTurns = model.turns
     }
 
 
@@ -117,7 +203,7 @@ updatePlaying msg model =
         SubmitTurn ->
             let
                 nextUrl =
-                    getNextUrl (getUrlModel model)
+                    getNextUrl (modelToUrlModel model)
             in
             ( Played model nextUrl, Cmd.none )
 
@@ -225,7 +311,7 @@ viewScoreHeader model =
                 , text " points"
                 ]
             , div [ style "flex" "1", style "text-align" "right" ]
-                [ text model.selfName
+                [ text model.opponent.name
                 , text ": "
                 , text (String.fromInt model.opponent.score)
                 , text " points"
