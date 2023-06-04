@@ -10,7 +10,7 @@ import Html.Attributes exposing (class, classList, disabled, href, style)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
 import List.Extra exposing (removeIfIndex)
-import Maybe exposing (withDefault)
+import Maybe
 import Url
 import UrlState exposing (decodeUrl, getNextUrl)
 
@@ -104,9 +104,12 @@ modelToUrlModel model =
     let
         nextTurn =
             model.rack
-                -- TODO
-                |> Array.indexedMap (\index t -> { rackIndex = index, position = t.placement |> Maybe.withDefault (Point 0 0) })
                 |> Array.toList
+                |> List.indexedMap
+                    (\index t ->
+                        t.placement |> Maybe.map (\placement -> { rackIndex = index, position = placement })
+                    )
+                |> List.filterMap (\x -> x)
     in
     { turns = PlayedTurn nextTurn :: model.playedTurns
     , nextPlayer =
