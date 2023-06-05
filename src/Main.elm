@@ -34,7 +34,7 @@ main =
 -- MODEL
 
 
-gridSize : number
+gridSize : Int
 gridSize =
     9
 
@@ -342,17 +342,35 @@ withPlacedTile model rackIndex =
 
         _ ->
             let
-                { x, y } =
-                    model.selectedCell
+                getNextSelectedCell { x, y } =
+                    let
+                        next =
+                            case model.selectDirection of
+                                Right ->
+                                    Point (x + 1) y
+
+                                Down ->
+                                    Point x (y + 1)
+
+                        inBounds =
+                            Array2D.get next.x next.y model.board /= Nothing
+
+                        nextContents =
+                            getCellContents model next
+                    in
+                    case ( inBounds, nextContents ) of
+                        ( False, _ ) ->
+                            Point 0 0
+
+                        ( True, Empty ) ->
+                            next
+
+                        _ ->
+                            getNextSelectedCell next
             in
             { model
                 | selectedCell =
-                    case model.selectDirection of
-                        Right ->
-                            Point (x + 1) y
-
-                        Down ->
-                            Point x (y + 1)
+                    getNextSelectedCell model.selectedCell
                 , rack =
                     model.rack
                         |> updateElement rackIndex (\t -> { t | placement = Just model.selectedCell })
