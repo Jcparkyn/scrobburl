@@ -46,14 +46,46 @@ initialBoard =
         |> Array2D.set 3 2 (Just 'B')
 
 
-allTiles : List Tile
-allTiles =
-    List.map Char.fromCode <| List.range (Char.toCode 'A') (Char.toCode 'Z')
+initialLetterCounts : List ( Char, Int )
+initialLetterCounts =
+    [ ( 'A', 8 )
+    , ( 'B', 2 )
+    , ( 'C', 2 )
+    , ( 'D', 3 )
+    , ( 'E', 12 )
+    , ( 'F', 2 )
+    , ( 'G', 2 )
+    , ( 'H', 2 )
+    , ( 'I', 7 )
+    , ( 'J', 1 )
+    , ( 'K', 1 )
+    , ( 'L', 3 )
+    , ( 'M', 2 )
+    , ( 'N', 6 )
+    , ( 'O', 7 )
+    , ( 'P', 2 )
+    , ( 'Q', 1 )
+    , ( 'R', 5 )
+    , ( 'S', 3 )
+    , ( 'T', 5 )
+    , ( 'U', 4 )
+    , ( 'V', 2 )
+    , ( 'W', 2 )
+    , ( 'X', 1 )
+    , ( 'Y', 3 )
+    , ( 'Z', 1 )
+    ]
 
 
 randomTile : Random.Generator Tile
 randomTile =
-    Random.uniform 'A' allTiles
+    case initialLetterCounts |> List.map (\( char, count ) -> ( toFloat count, char )) of
+        first :: rest ->
+            Random.weighted first rest
+
+        -- This branch can never be reached
+        _ ->
+            Random.constant 'A'
 
 
 type alias Flags =
