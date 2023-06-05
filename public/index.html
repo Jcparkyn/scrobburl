@@ -11,10 +11,13 @@
   <script>
     const start = async () => {
       const wordlist = await fetch('/dictionary.txt').then(res => res.text());
+      // This seed isn't perfect, but it doesn't matter too much
+      const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
       const app = Elm.Main.init({
         node: document.getElementById('myapp'),
         flags: {
           wordlist,
+          initialSeed: seed,
         }
       });
     }

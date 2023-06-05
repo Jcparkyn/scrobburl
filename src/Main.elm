@@ -3,9 +3,8 @@ module Main exposing (..)
 import Array exposing (Array)
 import Array2D
 import Browser
-import Checker exposing (CheckerModel, getLetterValue, letterValues, scoreMove)
+import Checker exposing (CheckerModel, getLetterValue, scoreMove)
 import Data exposing (..)
-import Dict
 import Html exposing (Html, a, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, href, style)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
@@ -88,6 +87,7 @@ randomTile =
 
 type alias Flags =
     { wordlist : String
+    , initialSeed : Int
     }
 
 
@@ -107,12 +107,11 @@ init flags url _ =
 
         _ ->
             let
-                -- TODO: Seed based on pw hashes
-                initialSeed =
-                    0
-
                 initialState =
-                    getInitialGameState (Random.initialSeed initialSeed)
+                    getInitialGameState (Random.initialSeed flags.initialSeed)
+
+                _ =
+                    Debug.log "initialSeed" flags.initialSeed
             in
             ( Playing
                 { selectedCell = Nothing
@@ -128,7 +127,7 @@ init flags url _ =
                 , selfName = initialState.nextPlayer.name
                 , selfScore = 0
                 , playedTurns = []
-                , initialSeed = initialSeed
+                , initialSeed = flags.initialSeed
                 , wordlist = parseWordList flags.wordlist
                 }
             , Cmd.none
