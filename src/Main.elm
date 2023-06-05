@@ -115,7 +115,7 @@ init flags url _ =
                     getInitialGameState (Random.initialSeed initialSeed)
             in
             ( Playing
-                { selectedCell = Point 0 0
+                { selectedCell = Nothing
                 , selectDirection = Right
                 , board = initialBoard
                 , rack =
@@ -268,7 +268,7 @@ urlModelToModel model wordlist =
         finalState =
             List.foldr (getNextGameState wordlist) initialState model.turns
     in
-    { selectedCell = Point 0 0
+    { selectedCell = Nothing
     , selectDirection = Right
     , board = finalState.board
     , rack =
@@ -303,13 +303,13 @@ updatePlaying msg model =
 
 withSelection : PlayingModel -> Point -> PlayingModel
 withSelection model point =
-    case (getCellProps model point).contents of
+    case getCellContents model point of
         Placed _ ->
             model
 
         Preview _ ->
             { model
-                | selectedCell = point
+                | selectedCell = Just point
                 , rack =
                     model.rack
                         |> Array.map
@@ -324,9 +324,9 @@ withSelection model point =
 
         Empty ->
             { model
-                | selectedCell = point
+                | selectedCell = Just point
                 , selectDirection =
-                    if model.selectedCell == point then
+                    if model.selectedCell == Just point then
                         swapDirection model.selectDirection
 
                     else
@@ -336,8 +336,8 @@ withSelection model point =
 
 withPlacedTile : PlayingModel -> Int -> PlayingModel
 withPlacedTile model rackIndex =
-    case (getCellProps model model.selectedCell).contents of
-        Placed _ ->
+    case model.selectedCell |> Maybe.map (getCellContents model) of
+        Just (Placed _) ->
             model
 
         _ ->
@@ -360,20 +360,20 @@ withPlacedTile model rackIndex =
                     in
                     case ( inBounds, nextContents ) of
                         ( False, _ ) ->
-                            Point 0 0
+                            Nothing
 
                         ( True, Empty ) ->
-                            next
+                            Just next
 
                         _ ->
                             getNextSelectedCell next
             in
             { model
                 | selectedCell =
-                    getNextSelectedCell model.selectedCell
+                    model.selectedCell |> Maybe.andThen getNextSelectedCell
                 , rack =
                     model.rack
-                        |> updateElement rackIndex (\t -> { t | placement = Just model.selectedCell })
+                        |> updateElement rackIndex (\t -> { t | placement = model.selectedCell })
             }
 
 
@@ -491,25 +491,22 @@ getCellProps model point =
 
 getCellState : PlayingModel -> Point -> CellSelection
 getCellState model point =
-    if model.selectedCell == point then
-        Selected
+    case model.selectedCell of
+        Nothing ->
+            Inactive
 
-    else if
-        (model.selectDirection == Right)
-            && (model.selectedCell.y == point.y)
-            && (model.selectedCell.x < point.x)
-    then
-        Highlight
+        Just selected ->
+            if selected == point then
+                Selected
 
-    else if
-        (model.selectDirection == Down)
-            && (model.selectedCell.x == point.x)
-            && (model.selectedCell.y < point.y)
-    then
-        Highlight
+            else if model.selectDirection == Right && selected.y == point.y && selected.x < point.x then
+                Highlight
 
-    else
-        Inactive
+            else if model.selectDirection == Down && selected.x == point.x && selected.y < point.y then
+                Highlight
+
+            else
+                Inactive
 
 
 viewCell : Point -> CellProps -> Html Msg

@@ -99,7 +99,7 @@ type Model
 
 
 type alias PlayingModel =
-    { selectedCell : Point
+    { selectedCell : Maybe Point
     , selectDirection : SelectDirection
     , board : Tiles
     , rack : RackState
