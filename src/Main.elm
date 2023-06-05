@@ -50,17 +50,13 @@ allTiles =
     List.map Char.fromCode <| List.range (Char.toCode 'A') (Char.toCode 'Z')
 
 
-initialRack : Array Tile
-initialRack =
-    Array.fromList [ 'A', 'X', 'B', 'L', 'D', 'E', 'I' ]
+randomTile : Random.Generator Tile
+randomTile =
+    Random.uniform 'A' allTiles
 
 
 init : flags -> Url.Url -> key -> ( Model, Cmd msg )
 init _ url _ =
-    let
-        _ =
-            Debug.log "URL" url
-    in
     case Debug.log "URL model" (decodeUrl url) of
         Just model ->
             ( Playing (urlModelToModel model)
@@ -68,21 +64,29 @@ init _ url _ =
             )
 
         _ ->
+            let
+                -- TODO: Seed based on pw hashes
+                initialSeed =
+                    0
+
+                initialState =
+                    getInitialGameState (Random.initialSeed initialSeed)
+            in
             ( Playing
                 { selectedCell = Point 0 0
                 , selectDirection = Right
                 , board = initialBoard
                 , rack =
-                    initialRack
+                    initialState.nextPlayer.rack
                         |> Array.map (\c -> RackTile c Nothing)
                 , opponent =
-                    { name = "Jeff"
+                    { name = initialState.lastPlayer.name
                     , score = 0
                     }
-                , selfName = "Bob"
+                , selfName = initialState.nextPlayer.name
                 , selfScore = 0
                 , playedTurns = []
-                , initialSeed = 0
+                , initialSeed = initialSeed
                 }
             , Cmd.none
             )
@@ -144,6 +148,25 @@ type alias PostTurnGameState =
     }
 
 
+getInitialGameState : Random.Seed -> PostTurnGameState
+getInitialGameState seed0 =
+    let
+        rackGenerator =
+            Random.list 7 randomTile |> Random.map Array.fromList
+
+        ( rack1, seed1 ) =
+            Random.step rackGenerator seed0
+
+        ( rack2, seed2 ) =
+            Random.step rackGenerator seed1
+    in
+    { board = initialBoard
+    , nextPlayer = { rack = rack1, score = 0, name = "Player 1" }
+    , lastPlayer = { rack = rack2, score = 0, name = "Player 2" }
+    , seed = seed2
+    }
+
+
 getNextGameState : PlayedTurn -> PostTurnGameState -> PostTurnGameState
 getNextGameState turn state =
     let
@@ -169,7 +192,7 @@ getNextGameState turn state =
 
                 -- TODO: Use real probabilities from bag
                 newTilesGenerator =
-                    Random.list (List.length placements) (Random.uniform 'A' allTiles)
+                    Random.list (List.length placements) randomTile
 
                 ( newTiles, seed ) =
                     Random.step newTilesGenerator state.seed
@@ -197,12 +220,7 @@ urlModelToModel : UrlState.UrlModel -> PlayingModel
 urlModelToModel model =
     let
         initialState =
-            -- TODO: Real initial values
-            PostTurnGameState
-                initialBoard
-                { rack = initialRack, score = 0, name = "Jeff" }
-                { rack = initialRack, score = 0, name = "Bob" }
-                (Random.initialSeed model.initialSeed)
+            getInitialGameState (Random.initialSeed model.initialSeed)
 
         finalState =
             List.foldr getNextGameState initialState model.turns
