@@ -1,6 +1,7 @@
 module Data exposing (..)
 
 import Array exposing (Array)
+import Array.Extra
 import Array2D exposing (Array2D)
 
 
@@ -124,7 +125,7 @@ getCellContents model point =
                     Empty
 
 
-getAllCellContents : PlayingModel -> Array2D CellContents
+getAllCellContents : { board : Tiles, rack : RackState } -> Array2D CellContents
 getAllCellContents model =
     let
         initialBoard =
@@ -146,3 +147,21 @@ getAllCellContents model =
 
 type PlayedTurn
     = PlayedTurn (List { rackIndex : Int, position : Point })
+
+
+playedTurnToRackState : PlayedTurn -> Array Tile -> RackState
+playedTurnToRackState turn rack =
+    case turn of
+        PlayedTurn placements ->
+            let
+                initialPositions =
+                    rack |> Array.map (\_ -> Nothing)
+
+                updatePositions placement positions =
+                    positions |> Array.set placement.rackIndex (Just placement.position)
+
+                finalPositions =
+                    placements
+                        |> List.foldl updatePositions initialPositions
+            in
+            Array.Extra.map2 RackTile rack finalPositions

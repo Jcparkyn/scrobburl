@@ -3,7 +3,7 @@ module Main exposing (..)
 import Array exposing (Array)
 import Array2D
 import Browser
-import Checker exposing (scoreMove)
+import Checker exposing (CheckerModel, scoreMove)
 import Data exposing (..)
 import Html exposing (Html, a, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, href, style)
@@ -71,10 +71,10 @@ init _ url _ =
                         |> Array.map (\c -> RackTile c Nothing)
                 , opponent =
                     { name = "Jeff"
-                    , score = 21
+                    , score = 0
                     }
                 , selfName = "Bob"
-                , selfScore = 69
+                , selfScore = 0
                 , playedTurns = []
                 }
             , Cmd.none
@@ -114,25 +114,29 @@ modelToUrlModel model =
     { turns = PlayedTurn nextTurn :: model.playedTurns
     , lastPlayer =
         { name = model.selfName
-        , score = model.selfScore
         }
     , nextPlayer =
         { name = model.opponent.name
-        , score = model.opponent.score
         }
+    }
+
+
+type alias PostTurnPlayerState =
+    { rack : Array Tile
+    , name : String
+    , score : Int
     }
 
 
 type alias PostTurnGameState =
     { board : Tiles
-    , nextPlayer : { rack : Array Tile }
-    , lastPlayer : { rack : Array Tile }
+    , nextPlayer : PostTurnPlayerState
+    , lastPlayer : PostTurnPlayerState
     }
 
 
 getNextGameState : PlayedTurn -> PostTurnGameState -> PostTurnGameState
 getNextGameState turn state =
-    -- TODO: This should check that the move is valid
     let
         boardWithPlacement placement board =
             let
@@ -147,6 +151,12 @@ getNextGameState turn state =
             let
                 rackIndices =
                     List.map .rackIndex placements
+
+                checkerRack =
+                    playedTurnToRackState turn state.nextPlayer.rack
+
+                score =
+                    scoreMove (CheckerModel state.board checkerRack)
             in
             { board =
                 List.foldl boardWithPlacement state.board placements
@@ -158,6 +168,10 @@ getNextGameState turn state =
                         |> Array.toList
                         |> removeIfIndex (\i -> List.member i rackIndices)
                         |> Array.fromList
+                , name = state.nextPlayer.name
+
+                -- TODO: Return nothing if move is invalid
+                , score = state.nextPlayer.score + Maybe.withDefault 0 score
                 }
             }
 
@@ -167,7 +181,7 @@ urlModelToModel model =
     let
         initialState =
             -- TODO: Real initial values
-            PostTurnGameState initialBoard { rack = initialRack } { rack = initialRack }
+            PostTurnGameState initialBoard { rack = initialRack, score = 0, name = "Jeff" } { rack = initialRack, score = 0, name = "Bob" }
 
         finalState =
             List.foldr getNextGameState initialState model.turns
@@ -180,10 +194,10 @@ urlModelToModel model =
             |> Array.map (\tile -> RackTile tile Nothing)
     , opponent =
         { name = model.lastPlayer.name
-        , score = model.lastPlayer.score
+        , score = finalState.lastPlayer.score
         }
     , selfName = model.nextPlayer.name
-    , selfScore = model.nextPlayer.score
+    , selfScore = finalState.nextPlayer.score
     , playedTurns = model.turns
     }
 
@@ -306,7 +320,7 @@ viewScoreHeader model =
                 , text " points"
                 ]
             ]
-        , case scoreMove model of
+        , case scoreMove (CheckerModel model.board model.rack) of
             Just score ->
                 let
                     nextUrl =

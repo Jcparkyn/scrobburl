@@ -1,12 +1,18 @@
-module Checker exposing (getAllLines, scoreMove)
+module Checker exposing (CheckerModel, getAllLines, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
-import Data exposing (CellContents(..), PlayingModel, Point, getAllCellContents, getTileFromTiles)
+import Data exposing (CellContents(..), Point, RackState, Tiles, getAllCellContents, getTileFromTiles)
 import List.Extra
 
 
-scoreMove : PlayingModel -> Maybe Int
+type alias CheckerModel =
+    { board : Tiles
+    , rack : RackState
+    }
+
+
+scoreMove : CheckerModel -> Maybe Int
 scoreMove model =
     if isValidPlacement model then
         getAllLines (getAllCellContents model)
@@ -30,7 +36,7 @@ sumScores scores =
         Nothing
 
 
-isValidPlacement : PlayingModel -> Bool
+isValidPlacement : CheckerModel -> Bool
 isValidPlacement model =
     let
         placements : List Point

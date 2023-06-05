@@ -17,7 +17,7 @@ type alias UrlModel =
 
 
 type alias UrlPlayer =
-    { name : String, score : Int }
+    { name : String }
 
 
 getNextUrl : UrlModel -> String
@@ -42,15 +42,13 @@ encodePlayer : UrlPlayer -> E.Value
 encodePlayer player =
     E.object
         [ ( "name", E.string player.name )
-        , ( "score", E.int player.score )
         ]
 
 
 decodePlayer : Decoder UrlPlayer
 decodePlayer =
-    D.map2 UrlPlayer
+    D.map UrlPlayer
         (D.field "name" D.string)
-        (D.field "score" D.int)
 
 
 encodePoint : Point -> String
