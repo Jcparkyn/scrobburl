@@ -41,10 +41,13 @@ sumScores scores =
 
 isConsecutive : List Int -> Bool
 isConsecutive list =
-    list
-        |> List.sort
+    let
+        sorted =
+            List.sort list
+    in
+    sorted
         -- Get differences between each element
-        |> List.map2 (-) (List.drop 1 list)
+        |> List.map2 (-) (List.drop 1 sorted)
         |> List.all ((==) 1)
 
 
@@ -75,7 +78,9 @@ isValidPlacement model =
         Just line ->
             if boardIsEmpty model.board then
                 -- Tiles should be consecutive and pass through centre.
-                (line |> List.map .index |> isConsecutive) && (placements |> List.member (Point 4 4))
+                (line |> List.map .index |> isConsecutive)
+                    && (placements |> List.member (Point 4 4))
+                    && (List.length placements > 1)
 
             else
                 line
