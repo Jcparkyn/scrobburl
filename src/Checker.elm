@@ -1,8 +1,9 @@
-module Checker exposing (CheckerModel, getAllLines, scoreMove)
+module Checker exposing (CheckerModel, getAllLines, getLetterValue, letterValues, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Data exposing (CellContents(..), Point, RackState, Tiles, boardIsEmpty, getAllCellContents, getTileFromTiles)
+import Dict
 import List.Extra
 import Set exposing (Set)
 
@@ -140,7 +141,7 @@ scoreLine wordlist line =
 
         scoreWord tiles =
             if Set.member (tilesToString tiles) wordlist then
-                Just (List.length tiles)
+                Just (tiles |> List.map (.tile >> getLetterValue) |> List.sum)
 
             else
                 Nothing
@@ -181,3 +182,40 @@ splitByNothings list =
             { prev = [], current = [] }
         |> (\state -> state.current :: state.prev)
         |> List.filter (List.isEmpty >> not)
+
+
+letterValues : Dict.Dict Char Int
+letterValues =
+    Dict.fromList
+        [ ( 'A', 1 )
+        , ( 'B', 4 )
+        , ( 'C', 4 )
+        , ( 'D', 2 )
+        , ( 'E', 1 )
+        , ( 'F', 4 )
+        , ( 'G', 3 )
+        , ( 'H', 3 )
+        , ( 'I', 1 )
+        , ( 'J', 10 )
+        , ( 'K', 5 )
+        , ( 'L', 2 )
+        , ( 'M', 4 )
+        , ( 'N', 2 )
+        , ( 'O', 1 )
+        , ( 'P', 4 )
+        , ( 'Q', 10 )
+        , ( 'R', 1 )
+        , ( 'S', 1 )
+        , ( 'T', 1 )
+        , ( 'U', 2 )
+        , ( 'V', 5 )
+        , ( 'W', 4 )
+        , ( 'X', 8 )
+        , ( 'Y', 3 )
+        , ( 'Z', 10 )
+        ]
+
+
+getLetterValue : Char -> Int
+getLetterValue letter =
+    Dict.get letter letterValues |> Maybe.withDefault 0

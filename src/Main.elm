@@ -3,8 +3,9 @@ module Main exposing (..)
 import Array exposing (Array)
 import Array2D
 import Browser
-import Checker exposing (CheckerModel, scoreMove)
+import Checker exposing (CheckerModel, getLetterValue, letterValues, scoreMove)
 import Data exposing (..)
+import Dict
 import Html exposing (Html, a, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, href, style)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
@@ -516,7 +517,9 @@ viewTile : Tile -> Bool -> Html msg
 viewTile tile isPreview =
     div
         [ classList [ ( "tile", True ), ( "preview-tile", isPreview ) ] ]
-        [ text (String.fromChar tile) ]
+        [ div [ class "tile-value " ] [ text (getLetterValue tile |> String.fromInt) ]
+        , text (String.fromChar tile)
+        ]
 
 
 cellColor : CellSelection -> String

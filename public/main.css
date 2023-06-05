@@ -49,6 +49,14 @@ main {
   color: green;
 }
 
+.tile-value {
+  color: black;
+  position: absolute;
+  font-size: 1rem;
+  line-height: 1em;
+  margin: 2px 7px;
+}
+
 .rack {
   grid-area: rack;
   border-bottom: 2px solid black;
