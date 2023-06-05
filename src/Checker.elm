@@ -2,7 +2,7 @@ module Checker exposing (CheckerModel, getAllLines, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
-import Data exposing (CellContents(..), Point, RackState, Tiles, getAllCellContents, getTileFromTiles)
+import Data exposing (CellContents(..), Point, RackState, Tiles, boardIsEmpty, getAllCellContents, getTileFromTiles)
 import List.Extra
 import Set exposing (Set)
 
@@ -38,6 +38,17 @@ sumScores scores =
         Nothing
 
 
+isConsecutive : List Int -> Bool
+isConsecutive list =
+    list
+        |> List.sort
+        -- Get differences between each element
+        |> List.map2 (-) (List.drop 1 list)
+        |> List.all ((==) 1)
+
+
+{-| This intentionally allows lines containing multiple separate words, might be reconsidered later.
+-}
 isValidPlacement : CheckerModel -> Bool
 isValidPlacement model =
     let
@@ -61,9 +72,14 @@ isValidPlacement model =
     in
     case getPlacementLine placements of
         Just line ->
-            line
-                |> List.map (\p -> { index = p.index, anchored = isAnchored p.pos })
-                |> isValidPlacementLine
+            if boardIsEmpty model.board then
+                -- Tiles should be consecutive and pass through centre.
+                (line |> List.map .index |> isConsecutive) && (placements |> List.member (Point 4 4))
+
+            else
+                line
+                    |> List.map (\p -> { index = p.index, anchored = isAnchored p.pos })
+                    |> isValidPlacementLine
 
         Nothing ->
             False

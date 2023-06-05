@@ -41,9 +41,6 @@ gridSize =
 initialBoard : Tiles
 initialBoard =
     Array2D.repeat gridSize gridSize Nothing
-        |> Array2D.set 1 2 (Just 'C')
-        |> Array2D.set 2 2 (Just 'A')
-        |> Array2D.set 3 2 (Just 'B')
 
 
 initialLetterCounts : List ( Char, Int )

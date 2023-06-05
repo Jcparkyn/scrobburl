@@ -3,6 +3,7 @@ module Data exposing (..)
 import Array exposing (Array)
 import Array.Extra
 import Array2D exposing (Array2D)
+import Array2D.Extra
 import Set exposing (Set)
 
 
@@ -74,6 +75,11 @@ swapDirection dir =
 
 type alias Tiles =
     Array2D (Maybe Tile)
+
+
+boardIsEmpty : Tiles -> Bool
+boardIsEmpty =
+    Array2D.Extra.all (\tile -> tile == Nothing)
 
 
 getTileFromTiles : Point -> Tiles -> Maybe Tile
