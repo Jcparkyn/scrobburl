@@ -51,11 +51,6 @@ decodePlayer =
         (D.field "name" D.string)
 
 
-encodePoint : Point -> String
-encodePoint { x, y } =
-    String.fromInt x ++ "," ++ String.fromInt y
-
-
 encodeTurn : PlayedTurn -> E.Value
 encodeTurn turn =
     case turn of
@@ -63,8 +58,7 @@ encodeTurn turn =
             tiles
                 |> E.list
                     (\{ rackIndex, position } ->
-                        E.string
-                            (String.fromInt rackIndex ++ "," ++ encodePoint position)
+                        E.list E.int [ rackIndex, position.x, position.y ]
                     )
 
 
@@ -72,8 +66,8 @@ decodeTurn : Decoder PlayedTurn
 decodeTurn =
     let
         decodePlacement p =
-            case String.split "," p |> List.map String.toInt of
-                [ Just a, Just b, Just c ] ->
+            case p of
+                [ a, b, c ] ->
                     { rackIndex = a
                     , position = Point b c
                     }
@@ -83,7 +77,7 @@ decodeTurn =
                     , position = Point 0 0
                     }
     in
-    D.list D.string
+    D.list (D.list D.int)
         |> D.map (\z -> PlayedTurn (List.map decodePlacement z))
 
 
