@@ -3,6 +3,7 @@ module Data exposing (..)
 import Array exposing (Array)
 import Array.Extra
 import Array2D exposing (Array2D)
+import Set exposing (Set)
 
 
 type alias Tile =
@@ -101,6 +102,7 @@ type alias PlayingModel =
     , selfScore : Int
     , playedTurns : List PlayedTurn
     , initialSeed : Int
+    , wordlist : Set String
     }
 
 

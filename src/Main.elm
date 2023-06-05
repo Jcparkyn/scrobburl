@@ -12,11 +12,12 @@ import Html.Events exposing (onClick)
 import List.Extra exposing (removeIfIndex)
 import Maybe
 import Random
+import Set exposing (Set)
 import Url
 import UrlState exposing (decodeUrl, getNextUrl)
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.application
         { init = init
@@ -40,9 +41,9 @@ gridSize =
 initialBoard : Tiles
 initialBoard =
     Array2D.repeat gridSize gridSize Nothing
-        |> Array2D.set 1 2 (Just 'A')
-        |> Array2D.set 2 2 (Just 'B')
-        |> Array2D.set 3 2 (Just 'C')
+        |> Array2D.set 1 2 (Just 'C')
+        |> Array2D.set 2 2 (Just 'A')
+        |> Array2D.set 3 2 (Just 'B')
 
 
 allTiles : List Tile
@@ -55,11 +56,22 @@ randomTile =
     Random.uniform 'A' allTiles
 
 
-init : flags -> Url.Url -> key -> ( Model, Cmd msg )
-init _ url _ =
+type alias Flags =
+    { wordlist : String
+    }
+
+
+parseWordList : String -> Set String
+parseWordList strList =
+    String.split "\n" strList
+        |> Set.fromList
+
+
+init : Flags -> Url.Url -> key -> ( Model, Cmd msg )
+init flags url _ =
     case Debug.log "URL model" (decodeUrl url) of
         Just model ->
-            ( Playing (urlModelToModel model)
+            ( Playing (urlModelToModel model (parseWordList flags.wordlist))
             , Cmd.none
             )
 
@@ -87,6 +99,7 @@ init _ url _ =
                 , selfScore = 0
                 , playedTurns = []
                 , initialSeed = initialSeed
+                , wordlist = parseWordList flags.wordlist
                 }
             , Cmd.none
             )
@@ -167,8 +180,8 @@ getInitialGameState seed0 =
     }
 
 
-getNextGameState : PlayedTurn -> PostTurnGameState -> PostTurnGameState
-getNextGameState turn state =
+getNextGameState : Set String -> PlayedTurn -> PostTurnGameState -> PostTurnGameState
+getNextGameState wordlist turn state =
     let
         boardWithPlacement placement board =
             let
@@ -188,7 +201,7 @@ getNextGameState turn state =
                     playedTurnToRackState turn state.nextPlayer.rack
 
                 score =
-                    scoreMove (CheckerModel state.board checkerRack)
+                    scoreMove (CheckerModel state.board checkerRack wordlist)
 
                 -- TODO: Use real probabilities from bag
                 newTilesGenerator =
@@ -216,14 +229,14 @@ getNextGameState turn state =
             }
 
 
-urlModelToModel : UrlState.UrlModel -> PlayingModel
-urlModelToModel model =
+urlModelToModel : UrlState.UrlModel -> Set String -> PlayingModel
+urlModelToModel model wordlist =
     let
         initialState =
             getInitialGameState (Random.initialSeed model.initialSeed)
 
         finalState =
-            List.foldr getNextGameState initialState model.turns
+            List.foldr (getNextGameState wordlist) initialState model.turns
     in
     { selectedCell = Point 0 0
     , selectDirection = Right
@@ -239,6 +252,7 @@ urlModelToModel model =
     , selfScore = finalState.nextPlayer.score
     , playedTurns = model.turns
     , initialSeed = model.initialSeed
+    , wordlist = wordlist
     }
 
 
@@ -360,7 +374,7 @@ viewScoreHeader model =
                 , text " points"
                 ]
             ]
-        , case scoreMove (CheckerModel model.board model.rack) of
+        , case scoreMove (CheckerModel model.board model.rack model.wordlist) of
             Just score ->
                 let
                     nextUrl =

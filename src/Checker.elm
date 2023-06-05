@@ -4,19 +4,21 @@ import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Data exposing (CellContents(..), Point, RackState, Tiles, getAllCellContents, getTileFromTiles)
 import List.Extra
+import Set exposing (Set)
 
 
 type alias CheckerModel =
     { board : Tiles
     , rack : RackState
+    , wordlist : Set String
     }
 
 
 scoreMove : CheckerModel -> Maybe Int
 scoreMove model =
     if isValidPlacement model then
-        getAllLines (getAllCellContents model)
-            |> List.map scoreLine
+        getAllLines (getAllCellContents { board = model.board, rack = model.rack })
+            |> List.map (scoreLine model.wordlist)
             |> sumScores
 
     else
@@ -114,8 +116,19 @@ getAllLines grid =
     rows ++ columns
 
 
-scoreLine : Array CellContents -> Maybe Int
-scoreLine line =
+scoreLine : Set String -> Array CellContents -> Maybe Int
+scoreLine wordlist line =
+    let
+        tilesToString =
+            List.map .tile >> String.fromList
+
+        scoreWord tiles =
+            if Set.member (tilesToString tiles) wordlist then
+                Just (List.length tiles)
+
+            else
+                Nothing
+    in
     line
         |> Array.toList
         |> List.map
@@ -132,7 +145,8 @@ scoreLine line =
             )
         |> splitByNothings
         |> List.filter (List.any .isPreview)
-        |> List.map (List.map .tile >> String.fromList >> scoreWord)
+        |> List.filter (\word -> List.length word > 1)
+        |> List.map scoreWord
         |> sumScores
 
 
@@ -151,19 +165,3 @@ splitByNothings list =
             { prev = [], current = [] }
         |> (\state -> state.current :: state.prev)
         |> List.filter (List.isEmpty >> not)
-
-
-scoreWord : String -> Maybe Int
-scoreWord word =
-    let
-        len =
-            String.length word
-    in
-    if len == 1 then
-        Just 0
-
-    else if len > 2 && String.length word < 5 then
-        Just len
-
-    else
-        Nothing

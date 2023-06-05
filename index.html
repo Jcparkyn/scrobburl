@@ -7,6 +7,18 @@
   <script src="main.js"></script>
 </head>
 <body>
-  <script>var app = Elm.Main.init();</script>
+  <div id="myapp">Fetching dictionary...</div>
+  <script>
+    const start = async () => {
+      const wordlist = await fetch('/dictionary.txt').then(res => res.text());
+      const app = Elm.Main.init({
+        node: document.getElementById('myapp'),
+        flags: {
+          wordlist,
+        }
+      });
+    }
+    start();
+  </script>
 </body>
 </html>

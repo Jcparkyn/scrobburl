@@ -43,7 +43,7 @@ gameState_n+1 = next(gameState_n, turn_n)
 - Sends:
   - P1.sk
   - seed (or gameState_0)
-  - turn_0
+  - [turn_0]
 
 # P2 (turn_1)
 - Verifies that hash(P1.sk) = P1.pk
@@ -54,8 +54,7 @@ gameState_n+1 = next(gameState_n, turn_n)
 - Stores:
   - hash(gameState_2)
 - Sends:
-  - gameState_1
-  - turn_1
+  - [turn_0, turn_1]
 
 # P1 (turn_2, first normal turn)
 - Verifies hash(gameState_1) against storage
@@ -65,8 +64,7 @@ gameState_n+1 = next(gameState_n, turn_n)
 - Stores:
   - hash(gameState_3)
 - Sends:
-  - gameState_2
-  - turn_2
+  - [turn_0, turn_1, turn_2]
 
 # Rest (playing turn_n)
 - Verifies hash(gameState_n-1) against storage
@@ -76,8 +74,7 @@ gameState_n+1 = next(gameState_n, turn_n)
 - Stores:
   - hash(gameState_n+1)
 - Sends:
-  - gameState_n
-  - turn_n
+  - [turn_0, ..., turn_n]
 
 
 # State size:
