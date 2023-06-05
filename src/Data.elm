@@ -100,6 +100,7 @@ type alias PlayingModel =
     , selfName : String
     , selfScore : Int
     , playedTurns : List PlayedTurn
+    , initialSeed : Int
     }
 
 

@@ -13,6 +13,7 @@ type alias UrlModel =
     { turns : List PlayedTurn
     , nextPlayer : UrlPlayer
     , lastPlayer : UrlPlayer
+    , initialSeed : Int
     }
 
 
@@ -35,6 +36,7 @@ getNextUrlBody model =
         [ ( "turns", E.list encodeTurn model.turns )
         , ( "nextPlayer", encodePlayer model.nextPlayer )
         , ( "lastPlayer", encodePlayer model.lastPlayer )
+        , ( "initialSeed", E.int model.initialSeed )
         ]
 
 
@@ -83,10 +85,11 @@ decodeTurn =
 
 decodeModel : Decoder UrlModel
 decodeModel =
-    D.map3 UrlModel
+    D.map4 UrlModel
         (D.field "turns" (D.list decodeTurn))
         (D.field "nextPlayer" decodePlayer)
         (D.field "lastPlayer" decodePlayer)
+        (D.field "initialSeed" D.int)
 
 
 decodeUrl : Url.Url -> Maybe UrlModel

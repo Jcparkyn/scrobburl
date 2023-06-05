@@ -11,6 +11,7 @@ import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
 import List.Extra exposing (removeIfIndex)
 import Maybe
+import Random
 import Url
 import UrlState exposing (decodeUrl, getNextUrl)
 
@@ -42,6 +43,11 @@ initialBoard =
         |> Array2D.set 1 2 (Just 'A')
         |> Array2D.set 2 2 (Just 'B')
         |> Array2D.set 3 2 (Just 'C')
+
+
+allTiles : List Tile
+allTiles =
+    List.map Char.fromCode <| List.range (Char.toCode 'A') (Char.toCode 'Z')
 
 
 initialRack : Array Tile
@@ -76,6 +82,7 @@ init _ url _ =
                 , selfName = "Bob"
                 , selfScore = 0
                 , playedTurns = []
+                , initialSeed = 0
                 }
             , Cmd.none
             )
@@ -118,6 +125,7 @@ modelToUrlModel model =
     , nextPlayer =
         { name = model.opponent.name
         }
+    , initialSeed = model.initialSeed
     }
 
 
@@ -132,6 +140,7 @@ type alias PostTurnGameState =
     { board : Tiles
     , nextPlayer : PostTurnPlayerState
     , lastPlayer : PostTurnPlayerState
+    , seed : Random.Seed
     }
 
 
@@ -157,22 +166,30 @@ getNextGameState turn state =
 
                 score =
                     scoreMove (CheckerModel state.board checkerRack)
+
+                -- TODO: Use real probabilities from bag
+                newTilesGenerator =
+                    Random.list (List.length placements) (Random.uniform 'A' allTiles)
+
+                ( newTiles, seed ) =
+                    Random.step newTilesGenerator state.seed
             in
             { board =
                 List.foldl boardWithPlacement state.board placements
             , nextPlayer = state.lastPlayer
             , lastPlayer =
-                -- TODO: Add new tiles
                 { rack =
                     state.nextPlayer.rack
                         |> Array.toList
                         |> removeIfIndex (\i -> List.member i rackIndices)
+                        |> List.append newTiles
                         |> Array.fromList
                 , name = state.nextPlayer.name
 
                 -- TODO: Return nothing if move is invalid
                 , score = state.nextPlayer.score + Maybe.withDefault 0 score
                 }
+            , seed = seed
             }
 
 
@@ -181,7 +198,11 @@ urlModelToModel model =
     let
         initialState =
             -- TODO: Real initial values
-            PostTurnGameState initialBoard { rack = initialRack, score = 0, name = "Jeff" } { rack = initialRack, score = 0, name = "Bob" }
+            PostTurnGameState
+                initialBoard
+                { rack = initialRack, score = 0, name = "Jeff" }
+                { rack = initialRack, score = 0, name = "Bob" }
+                (Random.initialSeed model.initialSeed)
 
         finalState =
             List.foldr getNextGameState initialState model.turns
@@ -199,6 +220,7 @@ urlModelToModel model =
     , selfName = model.nextPlayer.name
     , selfScore = finalState.nextPlayer.score
     , playedTurns = model.turns
+    , initialSeed = model.initialSeed
     }
 
 
