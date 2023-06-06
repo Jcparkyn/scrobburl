@@ -16,8 +16,8 @@ main {
 .grid {
   display: grid;
   grid-area: board;
-  grid-template-columns: repeat(9, var(--cell-size));
-  grid-template-rows: repeat(9, var(--cell-size));
+  grid-template-columns: repeat(15, var(--cell-size));
+  grid-template-rows: repeat(15, var(--cell-size));
   user-select: none;
 }
 

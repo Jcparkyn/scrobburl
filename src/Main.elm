@@ -35,7 +35,7 @@ main =
 
 gridSize : Int
 gridSize =
-    9
+    15
 
 
 initialBoard : Tiles

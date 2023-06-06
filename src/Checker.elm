@@ -79,7 +79,7 @@ isValidPlacement model =
             if boardIsEmpty model.board then
                 -- Tiles should be consecutive and pass through centre.
                 (line |> List.map .index |> isConsecutive)
-                    && (placements |> List.member (Point 4 4))
+                    && (placements |> List.member (Point 7 7))
                     && (List.length placements > 1)
 
             else
