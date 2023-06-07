@@ -407,7 +407,7 @@ view model =
 
 viewScoreHeader : PlayingModel -> Html Msg
 viewScoreHeader model =
-    div [ style "grid-area" "score-header" ]
+    div [ style "grid-area" "score-header", class "score-header" ]
         [ div [ style "display" "flex" ]
             [ div [ style "flex" "1" ]
                 [ text ("You (" ++ model.selfName ++ "): ")
@@ -513,7 +513,10 @@ viewCell point state =
     div
         [ onClick (Select point)
         , class "cell"
-        , style "background-color" (cellColor state.state)
+        , classList
+            [ ( "cell-selected", state.state == Selected )
+            , ( "cell-highlight", state.state == Highlight )
+            ]
         ]
         [ case state.contents of
             Empty ->
@@ -534,16 +537,3 @@ viewTile tile isPreview =
         [ div [ class "tile-value " ] [ text (getLetterValue tile |> String.fromInt) ]
         , text (String.fromChar tile)
         ]
-
-
-cellColor : CellSelection -> String
-cellColor state =
-    case state of
-        Selected ->
-            "red"
-
-        Highlight ->
-            "pink"
-
-        Inactive ->
-            "transparent"
