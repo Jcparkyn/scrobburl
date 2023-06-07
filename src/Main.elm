@@ -6,7 +6,7 @@ import Browser
 import Checker exposing (CheckerModel, getLetterValue, scoreMove)
 import Data exposing (..)
 import Html exposing (Html, a, button, div, main_, text)
-import Html.Attributes exposing (class, classList, disabled, href, style)
+import Html.Attributes exposing (class, classList, disabled, href, style, target)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
 import List.Extra exposing (removeIfIndex)
@@ -429,7 +429,7 @@ viewScoreHeader model =
                 in
                 div []
                     [ text ("Move: " ++ String.fromInt score ++ " points. ")
-                    , a [ href nextUrl ] [ text "Next turn" ]
+                    , a [ href nextUrl, target "blank" ] [ text "Next turn" ]
                     ]
 
             Nothing ->
