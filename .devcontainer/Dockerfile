@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/devcontainers/javascript-node:16
 ARG ELM_VERSION=latest-0.19.1
 ARG ELM_TEST_VERSION=latest-0.19.1
 ARG ELM_FORMAT_VERSION=latest-0.19.1
+ARG ELM_LIVE_VERSION=latest
 
 # This Dockerfile adds a non-root user with sudo access. Update the “remoteUser” property in
 # devcontainer.json to use it. More info: https://aka.ms/vscode-remote/containers/non-root-user.
@@ -17,6 +18,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     elm@${ELM_VERSION} \
     elm-test@${ELM_TEST_VERSION} \
     elm-format@${ELM_FORMAT_VERSION} \
+    elm-live@${ELM_LIVE_VERSION} \
     #
     # [Optional] Update UID/GID if needed
     && if [ "$USER_GID" != "1000" ] || [ "$USER_UID" != "1000" ]; then \
