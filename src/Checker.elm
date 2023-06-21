@@ -189,10 +189,16 @@ scoreLine wordlist line =
         tilesToString =
             List.map .tile >> String.fromList
 
+        wordMultiplier tiles =
+            tiles |> List.map (.multiplier >> .word) |> List.product
+
+        baseScore tiles =
+            tiles |> List.map (\t -> getLetterValue t.tile * t.multiplier.letter) |> List.sum
+
         scoreWord : List { a | tile : Char, multiplier : Multiplier } -> Maybe Int
         scoreWord tiles =
             if Set.member (tilesToString tiles) wordlist then
-                Just (tiles |> List.map (\t -> getLetterValue t.tile * t.multiplier.letter) |> List.sum)
+                Just (baseScore tiles * wordMultiplier tiles)
 
             else
                 Nothing
