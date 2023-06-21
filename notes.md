@@ -80,6 +80,31 @@ gameState_n+1 = next(gameState_n, turn_n)
 # State size:
 Each turn is:
 - Direction: 1 bit
-- Start tile: 9*9 = 7 bits
+- Start tile: 15*15 => 8 bits
 - Length: 4 bits
 - Letters: 3-8 bytes
+
+
+
+# V2 - Rest (playing turn_n)
+Note: The opponent's tiles are public with this scheme.
+- Verify that commit(received_open) == Store[received_commitment]
+- Verify that seed_{n-1} = hash(received_open, commit(Store[r_n])) // commit(Store[r_n]) equals received_commitment from the previous player.
+- Re-compute gameState_n from initial seed and turns
+  - Verify Store[checksum] == hash(gameState_n-1, Store[r_n], Store[received_commitment])
+  - If hash matches and everything is legal, then we're all good
+- Compute seed_n = hash(Store[r_n], received_commitment) // Could replace received_commitment with anything we can't predict.
+- Compute new tiles from last turn (can't be in current turn, otherwise they would be predictable)
+  - new_tiles = rand(seed_n)
+- Play turn_n
+- Compute gameState_n+1 = next(gameState_n, turn_n, seed_n)
+  - This does not include the new tiles
+- Generate r_n = random() // Should this be deterministic?
+- Store (encrypt with password):
+  - r_n
+  - received_commitment (can optionally be public)
+  - checksum = hash(gameState_n+1, r_n, received_commitment)
+- Send:
+  - open (from last commitment) = Store[r_n]
+  - commitment = commit(r_n) // Also include gameState to force variation?
+  - all turns as `{ placements: List (letter, x, y), seed: Int }`
