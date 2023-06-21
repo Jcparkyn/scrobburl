@@ -3,7 +3,7 @@ module Main exposing (..)
 import Array exposing (Array)
 import Array2D
 import Browser
-import Checker exposing (CheckerModel, getLetterValue, scoreMove)
+import Checker exposing (CheckerModel, getLetterValue, gridSize, scoreMove)
 import Data exposing (..)
 import Html exposing (Html, a, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, href, style, target)
@@ -31,11 +31,6 @@ main =
 
 
 -- MODEL
-
-
-gridSize : Int
-gridSize =
-    15
 
 
 initialBoard : Tiles
@@ -485,6 +480,7 @@ getCellProps model point =
     { state = getCellState model point
     , contents =
         getCellContents model point
+    , multiplier = Array2D.get point.x point.y Checker.multipliers |> Maybe.withDefault (Multiplier 1 1)
     }
 
 
@@ -516,6 +512,10 @@ viewCell point state =
         , classList
             [ ( "cell-selected", state.state == Selected )
             , ( "cell-highlight", state.state == Highlight )
+            , ( "cell-2w", state.multiplier.word == 2 )
+            , ( "cell-3w", state.multiplier.word == 3 )
+            , ( "cell-2l", state.multiplier.letter == 2 )
+            , ( "cell-3l", state.multiplier.letter == 3 )
             ]
         ]
         [ case state.contents of

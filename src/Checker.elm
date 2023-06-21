@@ -1,8 +1,9 @@
-module Checker exposing (CheckerModel, getAllLines, getLetterValue, letterValues, scoreMove)
+module Checker exposing (CheckerModel, getAllLines, getLetterValue, gridSize, letterValues, multipliers, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
-import Data exposing (CellContents(..), Point, RackState, Tiles, boardIsEmpty, getAllCellContents, getTileFromTiles)
+import Array2D.Extra
+import Data exposing (CellContents(..), Multiplier, Point, RackState, Tiles, boardIsEmpty, getAllCellContents, getTileFromTiles)
 import Dict
 import List.Extra
 import Set exposing (Set)
@@ -15,10 +16,54 @@ type alias CheckerModel =
     }
 
 
+gridSize : Int
+gridSize =
+    15
+
+
+multipliers : Array2D Multiplier
+multipliers =
+    let
+        normalize n =
+            abs (n - gridSize // 2)
+
+        multDict =
+            Dict.fromList
+                [ ( ( 7, 7 ), Multiplier 1 3 )
+                , ( ( 7, 0 ), Multiplier 1 3 )
+                , ( ( 0, 7 ), Multiplier 1 3 )
+                , ( ( 7, 4 ), Multiplier 2 1 )
+                , ( ( 4, 7 ), Multiplier 2 1 )
+                , ( ( 2, 6 ), Multiplier 3 1 )
+                , ( ( 6, 2 ), Multiplier 3 1 )
+                , ( ( 1, 5 ), Multiplier 2 1 )
+                , ( ( 0, 4 ), Multiplier 2 1 )
+                , ( ( 4, 0 ), Multiplier 2 1 )
+                , ( ( 5, 1 ), Multiplier 2 1 )
+                , ( ( 6, 6 ), Multiplier 1 2 )
+                , ( ( 5, 5 ), Multiplier 1 2 )
+                , ( ( 4, 4 ), Multiplier 1 2 )
+                , ( ( 3, 3 ), Multiplier 1 2 )
+                , ( ( 2, 2 ), Multiplier 3 1 )
+                , ( ( 1, 1 ), Multiplier 2 1 )
+                , ( ( 0, 0 ), Multiplier 1 2 )
+                ]
+    in
+    Array2D.initialize gridSize
+        gridSize
+        (\x y ->
+            multDict
+                |> Dict.get ( normalize x, normalize y )
+                |> Maybe.withDefault (Multiplier 1 1)
+        )
+
+
 scoreMove : CheckerModel -> Maybe Int
 scoreMove model =
     if isValidPlacement model then
-        getAllLines (getAllCellContents { board = model.board, rack = model.rack })
+        getAllCellContents { board = model.board, rack = model.rack }
+            |> Array2D.Extra.map2 Tuple.pair multipliers
+            |> getAllLines
             |> List.map (scoreLine model.wordlist)
             |> sumScores
 
@@ -138,15 +183,16 @@ getAllLines grid =
     rows ++ columns
 
 
-scoreLine : Set String -> Array CellContents -> Maybe Int
+scoreLine : Set String -> Array ( Multiplier, CellContents ) -> Maybe Int
 scoreLine wordlist line =
     let
         tilesToString =
             List.map .tile >> String.fromList
 
+        scoreWord : List { a | tile : Char, multiplier : Multiplier } -> Maybe Int
         scoreWord tiles =
             if Set.member (tilesToString tiles) wordlist then
-                Just (tiles |> List.map (.tile >> getLetterValue) |> List.sum)
+                Just (tiles |> List.map (\t -> getLetterValue t.tile * t.multiplier.letter) |> List.sum)
 
             else
                 Nothing
@@ -156,11 +202,11 @@ scoreLine wordlist line =
         |> List.map
             (\cell ->
                 case cell of
-                    Preview tile ->
-                        Just { tile = tile, isPreview = True }
+                    ( mult, Preview tile ) ->
+                        Just { tile = tile, isPreview = True, multiplier = mult }
 
-                    Placed tile ->
-                        Just { tile = tile, isPreview = False }
+                    ( mult, Placed tile ) ->
+                        Just { tile = tile, isPreview = False, multiplier = mult }
 
                     _ ->
                         Nothing

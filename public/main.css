@@ -60,6 +60,19 @@ body {
   background-color: #86806f;
 }
 
+.cell-2w {
+  background-color: rgb(248, 187, 107);
+}
+.cell-3w {
+  background-color: rgb(255, 63, 63);
+}
+.cell-2l {
+  background-color: rgb(107, 172, 224);
+}
+.cell-3l {
+  background-color: rgb(25, 105, 255);
+}
+
 .tile {
   position: relative;
   text-align: center;

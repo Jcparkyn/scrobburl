@@ -39,6 +39,10 @@ type CellContents
     | Placed Tile
 
 
+type alias Multiplier =
+    { letter : Int, word : Int }
+
+
 getTile : CellContents -> Maybe Tile
 getTile cell =
     case cell of
@@ -55,6 +59,7 @@ getTile cell =
 type alias CellProps =
     { state : CellSelection
     , contents : CellContents
+    , multiplier : Multiplier
     }
 
 
