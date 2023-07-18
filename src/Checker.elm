@@ -18,7 +18,7 @@ type alias CheckerModel =
 
 gridSize : Int
 gridSize =
-    15
+    14
 
 
 multipliers : Array2D Multiplier

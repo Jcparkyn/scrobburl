@@ -6,6 +6,7 @@
   --col-primary: #fec53c;
   --col-secondary: #5183e7;
   --col-cell: #2d2d2d;
+  --grid-size: 14;
   color: white;
   background-color: var(--col-bg);
 }
@@ -33,14 +34,21 @@ body {
   box-sizing: border-box;
 }
 
-.grid {
+.super-grid {
   display: grid;
   grid-area: board;
-  grid-template-columns: repeat(15, var(--cell-size));
-  grid-template-rows: repeat(15, var(--cell-size));
-  user-select: none;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
   grid-gap: 4px;
   overflow: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-size), var(--cell-size));
+  grid-template-rows: repeat(var(--grid-size), var(--cell-size));
+  user-select: none;
+  grid-gap: 4px;
 }
 
 .cell {
@@ -50,14 +58,6 @@ body {
 .cell:hover {
   outline: 3px solid #666;
   border-radius: 3px;
-}
-
-.cell-selected {
-  background-color: #e5dcc2;
-}
-
-.cell-highlight {
-  background-color: #86806f;
 }
 
 .cell-2w {
@@ -71,6 +71,17 @@ body {
 }
 .cell-3l {
   background-color: rgb(25, 105, 255);
+}
+.cell-selected {
+  background-color: #e5dcc2;
+}
+
+.cell-select-arrow {
+  color: black;
+  font-size: 45px;
+  text-align: center;
+  line-height: var(--cell-size);
+  height: 100%;
 }
 
 .tile {
@@ -88,7 +99,6 @@ body {
 }
 
 .tile:hover {
-  /* background-color: #b0b0d8; */
   opacity: 0.7;
 }
 

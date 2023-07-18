@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Array exposing (Array)
 import Array2D
+import Array2D.Extra
 import Browser
 import Checker exposing (CheckerModel, getLetterValue, gridSize, scoreMove)
 import Data exposing (..)
@@ -341,10 +342,10 @@ withPlacedTile model rackIndex =
                         next =
                             case model.selectDirection of
                                 Right ->
-                                    Point (x + 1) y
+                                    Point (modBy gridSize (x + 1)) y
 
                                 Down ->
-                                    Point x (y + 1)
+                                    Point x (modBy gridSize (y + 1))
 
                         inBounds =
                             Array2D.get next.x next.y model.board /= Nothing
@@ -458,21 +459,19 @@ viewRackTile index tile =
 
 viewGrid : PlayingModel -> Html Msg
 viewGrid model =
-    div
-        [ class "grid" ]
-        (pointGrid gridSize
-            |> List.map (\point -> viewCell point (getCellProps model point))
+    div [ class "super-grid" ]
+        (List.repeat 4 (viewPartialGrid model))
+
+
+viewPartialGrid : PlayingModel -> Html Msg
+viewPartialGrid model =
+    div [ class "grid" ]
+        (Array2D.initialize
+            gridSize
+            gridSize
+            (\y x -> viewCell (Point x y) (getCellProps model (Point x y)))
+            |> Array2D.Extra.flattenToList
         )
-
-
-pointGrid : Int -> List Point
-pointGrid size =
-    List.range 0 (size - 1)
-        |> List.concatMap
-            (\y ->
-                List.range 0 (gridSize - 1)
-                    |> List.map (\x -> Point x y)
-            )
 
 
 getCellProps : PlayingModel -> Point -> CellProps
@@ -492,13 +491,7 @@ getCellState model point =
 
         Just selected ->
             if selected == point then
-                Selected
-
-            else if model.selectDirection == Right && selected.y == point.y && selected.x < point.x then
-                Highlight
-
-            else if model.selectDirection == Down && selected.x == point.x && selected.y < point.y then
-                Highlight
+                Selected model.selectDirection
 
             else
                 Inactive
@@ -510,22 +503,33 @@ viewCell point state =
         [ onClick (Select point)
         , class "cell"
         , classList
-            [ ( "cell-selected", state.state == Selected )
-            , ( "cell-highlight", state.state == Highlight )
+            [ ( "cell-selected", state.state == Selected Right || state.state == Selected Down )
             , ( "cell-2w", state.multiplier.word == 2 )
             , ( "cell-3w", state.multiplier.word == 3 )
             , ( "cell-2l", state.multiplier.letter == 2 )
             , ( "cell-3l", state.multiplier.letter == 3 )
             ]
         ]
-        [ case state.contents of
-            Empty ->
+        [ case ( state.contents, state.state ) of
+            ( Empty, Inactive ) ->
                 text ""
 
-            Placed tile ->
+            ( Empty, Selected direction ) ->
+                div [ class "cell-select-arrow" ]
+                    [ text
+                        (case direction of
+                            Right ->
+                                "🡆"
+
+                            Down ->
+                                "🡇"
+                        )
+                    ]
+
+            ( Placed tile, _ ) ->
                 viewTile tile False
 
-            Preview tile ->
+            ( Preview tile, _ ) ->
                 viewTile tile True
         ]
 
