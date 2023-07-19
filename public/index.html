@@ -9,6 +9,28 @@
 <body>
   <div id="myapp">Fetching dictionary...</div>
   <script>
+    customElements.define('scroll-repeat', class extends HTMLElement {
+      constructor() { super(); }
+      connectedCallback() {
+        const onScroll = () => {
+          const { scrollTop, scrollLeft } = this;
+          const scrollResetDistance = (55 + 4) * 14;
+          if (scrollTop === 0) {
+            this.scrollTop = scrollResetDistance;
+          }
+          else if (scrollTop > scrollResetDistance) {
+            this.scrollTop = 1;
+          }
+          else if (scrollLeft === 0) {
+            this.scrollLeft = scrollResetDistance;
+          }
+          else if (scrollLeft > scrollResetDistance) {
+            this.scrollLeft = 1;
+          }
+        };
+        this.addEventListener("scroll", onScroll);
+      }
+    });
     const start = async () => {
       const wordlist = await fetch('dictionary.txt').then(res => res.text());
       // This seed isn't perfect, but it doesn't matter too much

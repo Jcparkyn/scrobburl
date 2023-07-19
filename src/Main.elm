@@ -7,7 +7,7 @@ import Browser
 import Checker exposing (CheckerModel, getLetterValue, gridSize, scoreMove)
 import Data exposing (..)
 import Html exposing (Html, a, button, div, main_, text)
-import Html.Attributes exposing (class, classList, disabled, href, style, target)
+import Html.Attributes exposing (class, classList, disabled, href, id, style, target)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
 import List.Extra exposing (removeIfIndex)
@@ -459,8 +459,12 @@ viewRackTile index tile =
 
 viewGrid : PlayingModel -> Html Msg
 viewGrid model =
-    div [ class "super-grid" ]
-        (List.repeat 4 (viewPartialGrid model))
+    Html.node "scroll-repeat"
+        [ class "scroll-repeat-view" ]
+        [ div
+            [ id "super-grid" ]
+            (List.repeat 4 (viewPartialGrid model))
+        ]
 
 
 viewPartialGrid : PlayingModel -> Html Msg

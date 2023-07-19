@@ -34,13 +34,18 @@ body {
   box-sizing: border-box;
 }
 
-.super-grid {
-  display: grid;
+.scroll-repeat-view {
+  overflow: auto;
+  max-width: 800px;
+  max-height: 700px;
   grid-area: board;
+}
+
+#super-grid {
+  display: grid;
   grid-template-columns: auto auto;
   grid-template-rows: auto auto;
   grid-gap: 4px;
-  overflow: auto;
 }
 
 .grid {
