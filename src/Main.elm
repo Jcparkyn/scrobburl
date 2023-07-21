@@ -408,13 +408,13 @@ viewScoreHeader model =
             [ div [ style "flex" "1" ]
                 [ text ("You (" ++ model.selfName ++ "): ")
                 , text (String.fromInt model.selfScore)
-                , text " points"
+                , text "\u{00A0}points"
                 ]
             , div [ style "flex" "1", style "text-align" "right" ]
                 [ text model.opponent.name
                 , text ": "
                 , text (String.fromInt model.opponent.score)
-                , text " points"
+                , text "\u{00A0}points"
                 ]
             ]
         , case scoreMove (CheckerModel model.board model.rack model.wordlist) of
