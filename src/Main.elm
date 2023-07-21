@@ -461,9 +461,12 @@ viewGrid : PlayingModel -> Html Msg
 viewGrid model =
     Html.node "scroll-repeat"
         [ class "scroll-repeat-view" ]
-        [ div
-            [ id "super-grid" ]
-            (List.repeat 4 (viewPartialGrid model))
+        -- We use a zero-size div to force the xy coords for panzoom to be the top-left of the grid.
+        [ div [ style "width" "0", style "height" "0" ]
+            [ div
+                [ id "super-grid" ]
+                (List.repeat 9 (viewPartialGrid model))
+            ]
         ]
 
 
