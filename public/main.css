@@ -80,15 +80,10 @@ body {
 .cell-3l {
   background-color: rgb(25, 105, 255);
 }
-.cell-selected {
-  background-color: #e5dcc2;
-}
 
-.cell-select-arrow {
-  color: black;
-  font-size: 45px;
-  text-align: center;
-  line-height: var(--cell-size);
+
+.cell-select-highlight {
+  background-color: #e5dcc2;
   height: 100%;
 }
 

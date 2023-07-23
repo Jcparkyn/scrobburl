@@ -492,13 +492,26 @@ getCellProps model point =
 
 getCellState : PlayingModel -> Point -> CellSelection
 getCellState model point =
+    let
+        -- computes the desired highlight opacity in one dimension
+        highlightOpacity selected current =
+            (1 - toFloat (Basics.modBy gridSize (current - selected)) / 7)
+                |> clamp 0 1
+                |> (*) 0.4
+    in
     case model.selectedCell of
         Nothing ->
             Inactive
 
         Just selected ->
             if selected == point then
-                Selected model.selectDirection
+                Selected
+
+            else if model.selectDirection == Right && selected.y == point.y then
+                SelectionHighlight (highlightOpacity selected.x point.x)
+
+            else if model.selectDirection == Down && selected.x == point.x then
+                SelectionHighlight (highlightOpacity selected.y point.y)
 
             else
                 Inactive
@@ -510,8 +523,7 @@ viewCell point state =
         [ onClick (Select point)
         , class "cell"
         , classList
-            [ ( "cell-selected", state.state == Selected Right || state.state == Selected Down )
-            , ( "cell-2w", state.multiplier.word == 2 )
+            [ ( "cell-2w", state.multiplier.word == 2 )
             , ( "cell-3w", state.multiplier.word == 3 )
             , ( "cell-2l", state.multiplier.letter == 2 )
             , ( "cell-3l", state.multiplier.letter == 3 )
@@ -521,17 +533,15 @@ viewCell point state =
             ( Empty, Inactive ) ->
                 text ""
 
-            ( Empty, Selected direction ) ->
-                div [ class "cell-select-arrow" ]
-                    [ text
-                        (case direction of
-                            Right ->
-                                "🡆"
+            ( Empty, Selected ) ->
+                div [ class "cell-select-highlight" ] []
 
-                            Down ->
-                                "🡇"
-                        )
+            ( Empty, SelectionHighlight highlightStrength ) ->
+                div
+                    [ class "cell-select-highlight"
+                    , style "opacity" (String.fromFloat highlightStrength)
                     ]
+                    []
 
             ( Placed tile, _ ) ->
                 viewTile tile False

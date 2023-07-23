@@ -28,7 +28,8 @@ type alias Point =
 
 
 type CellSelection
-    = Selected SelectDirection
+    = Selected
+    | SelectionHighlight Float
     | Inactive
 
 
