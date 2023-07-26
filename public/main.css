@@ -122,7 +122,7 @@ body {
   grid-area: rack;
   border-bottom: 3px solid #5b5b5b;
   display: inline-flex;
-  flex-direction: row;
+  flex-flow: row wrap;
   padding: 4px;
   user-select: none;
   justify-content: center;

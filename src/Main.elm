@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Array exposing (Array)
+import Array.Extra
 import Array2D
 import Array2D.Extra
 import Browser
@@ -190,7 +191,7 @@ getInitialGameState : Random.Seed -> PostTurnGameState
 getInitialGameState seed0 =
     let
         rackGenerator =
-            Random.list 7 randomTile |> Random.map Array.fromList
+            Random.list 8 randomTile |> Random.map Array.fromList
 
         ( rack1, seed1 ) =
             Random.step rackGenerator seed0
@@ -435,8 +436,16 @@ viewScoreHeader model =
 
 viewRack : RackState -> Html Msg
 viewRack rack =
+    let
+        rackViews =
+            rack |> Array.indexedMap viewRackTile
+
+        ( first, rest ) =
+            Array.Extra.splitAt (Array.length rack - 3) rackViews
+    in
     div [ class "rack" ]
-        (rack |> Array.toList |> List.indexedMap viewRackTile)
+        -- The last 3 tiles go in a separate div, so that they wrap together
+        (Array.toList first ++ [ div [] (Array.toList rest) ])
 
 
 viewRackTile : Int -> RackTile -> Html Msg
