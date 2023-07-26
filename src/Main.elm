@@ -5,12 +5,13 @@ import Array.Extra
 import Array2D
 import Array2D.Extra
 import Browser
-import Checker exposing (CheckerModel, getLetterValue, gridSize, scoreMove)
+import Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, scoreMove)
 import Data exposing (..)
 import Html exposing (Html, a, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
+import Html.Extra
 import List.Extra exposing (removeIfIndex)
 import Maybe
 import Random
@@ -226,8 +227,14 @@ getNextGameState wordlist turn state =
                 checkerRack =
                     playedTurnToRackState turn state.nextPlayer.rack
 
+                -- TODO: Return nothing if move is invalid
                 score =
-                    scoreMove (CheckerModel state.board checkerRack wordlist)
+                    case scoreMove (CheckerModel state.board checkerRack wordlist) of
+                        ValidPlacement result ->
+                            result.score
+
+                        _ ->
+                            0
 
                 -- TODO: Use real probabilities from bag
                 newTilesGenerator =
@@ -247,9 +254,7 @@ getNextGameState wordlist turn state =
                         |> List.append newTiles
                         |> Array.fromList
                 , name = state.nextPlayer.name
-
-                -- TODO: Return nothing if move is invalid
-                , score = state.nextPlayer.score + Maybe.withDefault 0 score
+                , score = state.nextPlayer.score + score
                 }
             , seed = seed
             }
@@ -419,18 +424,23 @@ viewScoreHeader model =
                 ]
             ]
         , case scoreMove (CheckerModel model.board model.rack model.wordlist) of
-            Just score ->
-                let
-                    nextUrl =
-                        getNextUrl (modelToUrlModel model)
-                in
-                div []
-                    [ text ("Move: " ++ String.fromInt score ++ " points. ")
-                    , a [ href nextUrl, target "blank" ] [ text "Next turn" ]
-                    ]
+            ValidPlacement { score, invalidWords } ->
+                case invalidWords of
+                    [] ->
+                        div []
+                            [ text ("Move: " ++ String.fromInt score ++ " points. ")
+                            , a [ href (getNextUrl (modelToUrlModel model)), target "blank" ]
+                                [ text "Next turn" ]
+                            ]
 
-            Nothing ->
-                text "Not a valid move"
+                    [ invalidWord ] ->
+                        text (invalidWord ++ " is not a valid word")
+
+                    first :: rest ->
+                        text (String.join ", " rest ++ ", and " ++ first ++ " are not valid words")
+
+            InvalidPlacement ->
+                text "Not a valid placement"
         ]
 
 

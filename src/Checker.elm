@@ -1,4 +1,4 @@
-module Checker exposing (CheckerModel, getAllLines, getLetterValue, gridSize, letterValues, multipliers, scoreMove)
+module Checker exposing (CheckerModel, CheckerResult(..), getAllLines, getLetterValue, gridSize, letterValues, multipliers, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
@@ -14,6 +14,15 @@ type alias CheckerModel =
     , rack : RackState
     , wordlist : Set String
     }
+
+
+type alias ScoreWordResult =
+    { word : String, score : Maybe Int }
+
+
+type CheckerResult
+    = InvalidPlacement
+    | ValidPlacement { score : Int, invalidWords : List String }
 
 
 gridSize : Int
@@ -58,30 +67,35 @@ multipliers =
         )
 
 
-scoreMove : CheckerModel -> Maybe Int
+scoreMove : CheckerModel -> CheckerResult
 scoreMove model =
     if isValidPlacement model then
         getAllCellContents { board = model.board, rack = model.rack }
             |> Array2D.Extra.map2 Tuple.pair multipliers
             |> getAllLines
-            |> List.map (scoreLine model.wordlist)
+            |> List.concatMap (scoreLine model.wordlist)
             |> sumScores
 
     else
-        Nothing
+        InvalidPlacement
 
 
-sumScores : List (Maybe Int) -> Maybe Int
+sumScores : List ScoreWordResult -> CheckerResult
 sumScores scores =
     let
         validScores =
-            List.filterMap identity scores
-    in
-    if List.length scores == List.length validScores then
-        Just (List.sum validScores)
+            List.filterMap .score scores
 
-    else
-        Nothing
+        total =
+            List.sum validScores
+    in
+    ValidPlacement
+        { score = total
+        , invalidWords =
+            scores
+                |> List.filter (\s -> s.score == Nothing)
+                |> List.map .word
+        }
 
 
 isConsecutive : List Int -> Bool
@@ -183,25 +197,34 @@ getAllLines grid =
     rows ++ columns
 
 
-scoreLine : Set String -> Array ( Multiplier, CellContents ) -> Maybe Int
+scoreLine : Set String -> Array ( Multiplier, CellContents ) -> List ScoreWordResult
 scoreLine wordlist line =
     let
         tilesToString =
             List.map .tile >> String.fromList
 
         wordMultiplier tiles =
-            tiles |> List.map (.multiplier >> .word) |> List.product
+            tiles |> List.filter .isPreview |> List.map (.multiplier >> .word) |> List.product
 
-        baseScore tiles =
-            tiles |> List.map (\t -> getLetterValue t.tile * t.multiplier.letter) |> List.sum
-
-        scoreWord : List { a | tile : Char, multiplier : Multiplier } -> Maybe Int
-        scoreWord tiles =
-            if Set.member (tilesToString tiles) wordlist then
-                Just (baseScore tiles * wordMultiplier tiles)
+        letterMultiplier tile =
+            if tile.isPreview then
+                tile.multiplier.letter
 
             else
-                Nothing
+                1
+
+        baseScore tiles =
+            tiles |> List.map (\t -> getLetterValue t.tile * letterMultiplier t) |> List.sum
+
+        scoreWord tiles =
+            { word = tilesToString tiles
+            , score =
+                if Set.member (tilesToString tiles) wordlist then
+                    Just (baseScore tiles * wordMultiplier tiles)
+
+                else
+                    Nothing
+            }
     in
     line
         |> Array.toList
@@ -221,7 +244,6 @@ scoreLine wordlist line =
         |> List.filter (List.any .isPreview)
         |> List.filter (\word -> List.length word > 1)
         |> List.map scoreWord
-        |> sumScores
 
 
 splitByNothings : List (Maybe a) -> List (List a)
