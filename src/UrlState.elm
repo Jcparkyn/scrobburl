@@ -92,7 +92,12 @@ decodeModel =
         (D.field "initialSeed" D.int)
 
 
-decodeUrl : Url.Url -> Maybe UrlModel
+type DecodeUrlError
+    = QueryParseError
+    | JsonDecodeError D.Error
+
+
+decodeUrl : Url.Url -> Result DecodeUrlError UrlModel
 decodeUrl url =
     let
         route =
@@ -104,8 +109,12 @@ decodeUrl url =
     in
     case stateJson of
         Just json ->
-            D.decodeString decodeModel json
-                |> Result.toMaybe
+            case D.decodeString decodeModel json of
+                Ok result ->
+                    Ok result
+
+                Err err ->
+                    Err (JsonDecodeError err)
 
         _ ->
-            Nothing
+            Err QueryParseError

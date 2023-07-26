@@ -97,7 +97,7 @@ parseWordList strList =
 init : Flags -> Url.Url -> key -> ( Model, Cmd msg )
 init flags url _ =
     case Debug.log "URL model" (decodeUrl url) of
-        Just model ->
+        Ok model ->
             ( Playing (urlModelToModel model (parseWordList flags.wordlist))
             , Cmd.none
             )
