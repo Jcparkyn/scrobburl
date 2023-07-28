@@ -1,8 +1,9 @@
 module UrlState exposing (UrlModel, decodeUrl, getNextUrl)
 
-import Data exposing (PlayedTurn(..), Point)
+import Data exposing (PlayedTurn(..))
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
+import Point exposing (Point)
 import Url
 import Url.Builder
 import Url.Parser

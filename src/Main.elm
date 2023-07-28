@@ -14,6 +14,7 @@ import Html.Events exposing (onClick)
 import Html.Extra
 import List.Extra exposing (removeIfIndex)
 import Maybe
+import Point exposing (Point)
 import Random
 import Set exposing (Set)
 import Url
@@ -439,8 +440,17 @@ viewScoreHeader model =
                     first :: rest ->
                         text (String.join ", " rest ++ ", and " ++ first ++ " are not valid words")
 
-            InvalidPlacement ->
-                text "Not a valid placement"
+            NotThroughOrigin ->
+                text "Your first word must pass through the star"
+
+            NotEnoughTiles ->
+                text "You must place at least two tiles"
+
+            NotAnchored ->
+                text "All tiles must be connected"
+
+            NotInLine ->
+                text "All your tiles must be in a single row or column"
         ]
 
 

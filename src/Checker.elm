@@ -3,9 +3,10 @@ module Checker exposing (CheckerModel, CheckerResult(..), getAllLines, getLetter
 import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Array2D.Extra
-import Data exposing (CellContents(..), Multiplier, Point, RackState, Tiles, boardIsEmpty, getAllCellContents, getTileFromTiles)
+import Data exposing (CellContents(..), Multiplier, RackState, Tiles, getAllCellContents)
 import Dict
 import List.Extra
+import Point exposing (Point)
 import Set exposing (Set)
 
 
@@ -21,7 +22,10 @@ type alias ScoreWordResult =
 
 
 type CheckerResult
-    = InvalidPlacement
+    = NotThroughOrigin
+    | NotEnoughTiles
+    | NotAnchored
+    | NotInLine
     | ValidPlacement { score : Int, invalidWords : List String }
 
 
@@ -69,118 +73,81 @@ multipliers =
 
 scoreMove : CheckerModel -> CheckerResult
 scoreMove model =
-    if isValidPlacement model then
-        getAllCellContents { board = model.board, rack = model.rack }
-            |> Array2D.Extra.map2 Tuple.pair multipliers
-            |> getAllLines
-            |> List.concatMap (scoreLine model.wordlist)
-            |> sumScores
-
-    else
-        InvalidPlacement
-
-
-sumScores : List ScoreWordResult -> CheckerResult
-sumScores scores =
     let
-        validScores =
-            List.filterMap .score scores
+        cellContents =
+            getAllCellContents { board = model.board, rack = model.rack }
 
-        total =
-            List.sum validScores
-    in
-    ValidPlacement
-        { score = total
-        , invalidWords =
-            scores
-                |> List.filter (\s -> s.score == Nothing)
-                |> List.map .word
-        }
+        occupied =
+            cellContents |> Array2D.map ((/=) Empty)
 
+        occupiedCount =
+            cellContents
+                |> Array2D.Extra.flattenToList
+                |> List.Extra.count ((/=) Empty)
 
-isConsecutive : List Int -> Bool
-isConsecutive list =
-    let
-        sorted =
-            List.sort list
-    in
-    sorted
-        -- Get differences between each element
-        |> List.map2 (-) (List.drop 1 sorted)
-        |> List.all ((==) 1)
+        anchoredPoints =
+            dfsGrid (Point 7 7) occupied
 
-
-{-| This intentionally allows lines containing multiple separate words, might be reconsidered later.
--}
-isValidPlacement : CheckerModel -> Bool
-isValidPlacement model =
-    let
-        placements : List Point
         placements =
             model.rack
                 |> Array.toList
                 |> List.filterMap .placement
 
-        isPlaced point =
-            getTileFromTiles point model.board /= Nothing
+        isInLine points =
+            case points of
+                [] ->
+                    False
 
-        isAnchored : Point -> Bool
-        isAnchored point =
-            [ Point point.x (point.y + 1)
-            , Point point.x (point.y - 1)
-            , Point (point.x + 1) point.y
-            , Point (point.x - 1) point.y
-            ]
-                |> List.any isPlaced
+                first :: rest ->
+                    List.all (\p -> p.x == first.x) rest
+                        || List.all (\p -> p.y == first.y) rest
+
+        wordScores =
+            cellContents
+                |> Array2D.Extra.map2 Tuple.pair multipliers
+                |> getAllLines
+                |> List.concatMap (scoreLine model.wordlist)
     in
-    case getPlacementLine placements of
-        Just line ->
-            if boardIsEmpty model.board then
-                -- Tiles should be consecutive and pass through centre.
-                (line |> List.map .index |> isConsecutive)
-                    && (placements |> List.member (Point 7 7))
-                    && (List.length placements > 1)
+    if Set.size anchoredPoints == 0 then
+        NotThroughOrigin
+
+    else if Set.size anchoredPoints == 1 then
+        NotEnoughTiles
+
+    else if not <| isInLine placements then
+        NotInLine
+
+    else if Set.size anchoredPoints < occupiedCount then
+        NotAnchored
+
+    else
+        ValidPlacement
+            { score = wordScores |> List.filterMap .score |> List.sum
+            , invalidWords =
+                wordScores
+                    |> List.filter (\s -> s.score == Nothing)
+                    |> List.map .word
+            }
+
+
+dfsGrid : Point -> Array2D Bool -> Set ( Int, Int )
+dfsGrid start grid =
+    let
+        neighbours ( x, y ) =
+            [ ( x, modBy gridSize (y + 1) )
+            , ( x, modBy gridSize (y - 1) )
+            , ( modBy gridSize (x + 1), y )
+            , ( modBy gridSize (x - 1), y )
+            ]
+
+        iter ( x, y ) visited =
+            if Set.member ( x, y ) visited || Array2D.get x y grid == Just False then
+                visited
 
             else
-                line
-                    |> List.map (\p -> { index = p.index, anchored = isAnchored p.pos })
-                    |> isValidPlacementLine
-
-        Nothing ->
-            False
-
-
-isValidPlacementLine : List { index : Int, anchored : Bool } -> Bool
-isValidPlacementLine points =
-    points
-        |> List.sortBy .index
-        |> List.Extra.groupWhile (\a b -> a.index + 1 == b.index)
-        |> List.map (\group -> Tuple.first group :: Tuple.second group)
-        |> List.all (List.any .anchored)
-
-
-{-| Checks if a list of points are in a line, and returns the points along with their
-positions along the line (horizontal or vertical)
--}
-getPlacementLine : List Point -> Maybe (List { pos : Point, index : Int })
-getPlacementLine points =
-    case points of
-        [] ->
-            Nothing
-
-        first :: _ ->
-            let
-                getLine fn =
-                    Just (List.map (\p -> { pos = p, index = fn p }) points)
-            in
-            if List.all (\p -> p.x == first.x) points then
-                getLine .y
-
-            else if List.all (\p -> p.y == first.y) points then
-                getLine .x
-
-            else
-                Nothing
+                List.foldr iter (Set.insert ( x, y ) visited) (neighbours ( x, y ))
+    in
+    iter (Point.toTuple start) Set.empty
 
 
 getAllLines : Array2D a -> List (Array a)

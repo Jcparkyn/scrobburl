@@ -4,6 +4,7 @@ import Array exposing (Array)
 import Array.Extra
 import Array2D exposing (Array2D)
 import Array2D.Extra
+import Point exposing (Point)
 import Set exposing (Set)
 
 
@@ -19,12 +20,6 @@ type alias RackTile =
 
 type alias RackState =
     Array RackTile
-
-
-type alias Point =
-    { x : Int
-    , y : Int
-    }
 
 
 type CellSelection
@@ -80,17 +75,6 @@ swapDirection dir =
 
 type alias Tiles =
     Array2D (Maybe Tile)
-
-
-boardIsEmpty : Tiles -> Bool
-boardIsEmpty =
-    Array2D.Extra.all (\tile -> tile == Nothing)
-
-
-getTileFromTiles : Point -> Tiles -> Maybe Tile
-getTileFromTiles point tiles =
-    Array2D.get point.x point.y tiles
-        |> Maybe.andThen identity
 
 
 type alias Opponent =
