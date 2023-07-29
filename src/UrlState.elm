@@ -37,7 +37,7 @@ compressToBase64 str =
         |> Maybe.withDefault ""
 
 
-decompressFromBase64 : String -> Maybe String
+decompressFromBase64 : String -> Result DecodeUrlError String
 decompressFromBase64 str =
     let
         decodeAsString buffer =
@@ -45,8 +45,10 @@ decompressFromBase64 str =
     in
     str
         |> Base64.toBytes
-        |> Maybe.andThen inflate
-        |> Maybe.andThen decodeAsString
+        |> Result.fromMaybe Base64Error
+        |> Result.andThen (inflate >> Result.fromMaybe InflateError)
+        -- |> Result.andThen (\s -> Result.fromMaybe InflateError (inflate s))
+        |> Result.andThen (decodeAsString >> Result.fromMaybe ByteDecodeError)
 
 
 getNextUrl : UrlModel -> String
@@ -125,6 +127,9 @@ decodeModel =
 
 type DecodeUrlError
     = QueryParseError
+    | Base64Error
+    | InflateError
+    | ByteDecodeError
     | JsonDecodeError D.Error
 
 
@@ -138,18 +143,12 @@ decodeUrl url =
             -- Remove the path, otherwise any leading path segments will break the parse
             Url.Parser.parse route { url | path = "" }
                 |> Maybe.withDefault Nothing
+                |> Result.fromMaybe QueryParseError
 
-        stateJson =
-            stateBase64 |> Maybe.andThen decompressFromBase64
+        jsonDecode json =
+            D.decodeString decodeModel json
+                |> Result.mapError JsonDecodeError
     in
-    case stateJson of
-        Just json ->
-            case D.decodeString decodeModel json of
-                Ok result ->
-                    Ok result
-
-                Err err ->
-                    Err (JsonDecodeError err)
-
-        _ ->
-            Err QueryParseError
+    stateBase64
+        |> Result.andThen decompressFromBase64
+        |> Result.andThen jsonDecode
