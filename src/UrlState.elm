@@ -135,7 +135,8 @@ decodeUrl url =
             Url.Parser.query (Url.Parser.Query.string "state")
 
         stateBase64 =
-            Url.Parser.parse route url
+            -- Remove the path, otherwise any leading path segments will break the parse
+            Url.Parser.parse route { url | path = "" }
                 |> Maybe.withDefault Nothing
 
         stateJson =
