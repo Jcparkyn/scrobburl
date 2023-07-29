@@ -1,6 +1,11 @@
 module UrlState exposing (UrlModel, decodeUrl, getNextUrl)
 
+import Base64
+import Bytes
+import Bytes.Decode as BD
+import Bytes.Encode as BE
 import Data exposing (PlayedTurn(..))
+import Flate exposing (deflate, inflate)
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
 import Point exposing (Point)
@@ -22,13 +27,38 @@ type alias UrlPlayer =
     { name : String }
 
 
+compressToBase64 : String -> String
+compressToBase64 str =
+    str
+        |> BE.string
+        |> BE.encode
+        |> deflate
+        |> Base64.fromBytes
+        |> Maybe.withDefault ""
+
+
+decompressFromBase64 : String -> Maybe String
+decompressFromBase64 str =
+    let
+        decodeAsString buffer =
+            BD.decode (BD.string (Bytes.width buffer)) buffer
+    in
+    str
+        |> Base64.toBytes
+        |> Maybe.andThen inflate
+        |> Maybe.andThen decodeAsString
+
+
 getNextUrl : UrlModel -> String
 getNextUrl model =
     let
-        body =
+        bodyJson =
             E.encode 0 (getNextUrlBody model)
+
+        bodyBase64 =
+            compressToBase64 bodyJson
     in
-    Url.Builder.relative [] [ Url.Builder.string "state" body ]
+    Url.Builder.relative [] [ Url.Builder.string "state" bodyBase64 ]
 
 
 getNextUrlBody : UrlModel -> E.Value
@@ -104,9 +134,12 @@ decodeUrl url =
         route =
             Url.Parser.query (Url.Parser.Query.string "state")
 
-        stateJson =
+        stateBase64 =
             Url.Parser.parse route url
                 |> Maybe.withDefault Nothing
+
+        stateJson =
+            stateBase64 |> Maybe.andThen decompressFromBase64
     in
     case stateJson of
         Just json ->
