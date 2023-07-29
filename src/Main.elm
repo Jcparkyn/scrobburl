@@ -408,6 +408,11 @@ view model =
     }
 
 
+nbsp : String
+nbsp =
+    "\u{00A0}"
+
+
 viewScoreHeader : PlayingModel -> Html Msg
 viewScoreHeader model =
     div [ style "grid-area" "score-header", class "score-header" ]
@@ -415,16 +420,19 @@ viewScoreHeader model =
             [ div [ style "flex" "1" ]
                 [ text ("You (" ++ model.selfName ++ "): ")
                 , text (String.fromInt model.selfScore)
-                , text "\u{00A0}points"
+                , text (nbsp ++ "points")
                 ]
             , div [ style "flex" "1", style "text-align" "right" ]
                 [ text model.opponent.name
                 , text ": "
                 , text (String.fromInt model.opponent.score)
-                , text "\u{00A0}points"
+                , text (nbsp ++ "points")
                 ]
             ]
         , case scoreMove (CheckerModel model.board model.rack model.wordlist) of
+            NothingPlaced ->
+                text nbsp
+
             ValidPlacement { score, invalidWords } ->
                 case invalidWords of
                     [] ->
@@ -438,7 +446,7 @@ viewScoreHeader model =
                         text (invalidWord ++ " is not a valid word")
 
                     first :: rest ->
-                        text (String.join ", " rest ++ ", and " ++ first ++ " are not valid words")
+                        text (String.join ", " rest ++ " and " ++ first ++ " are not valid words")
 
             NotThroughOrigin ->
                 text "Your first word must pass through the star"

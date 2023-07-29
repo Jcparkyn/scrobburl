@@ -3,7 +3,6 @@ module Data exposing (..)
 import Array exposing (Array)
 import Array.Extra
 import Array2D exposing (Array2D)
-import Array2D.Extra
 import Point exposing (Point)
 import Set exposing (Set)
 

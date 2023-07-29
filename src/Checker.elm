@@ -26,6 +26,7 @@ type CheckerResult
     | NotEnoughTiles
     | NotAnchored
     | NotInLine
+    | NothingPlaced
     | ValidPlacement { score : Int, invalidWords : List String }
 
 
@@ -108,7 +109,10 @@ scoreMove model =
                 |> getAllLines
                 |> List.concatMap (scoreLine model.wordlist)
     in
-    if Set.size anchoredPoints == 0 then
+    if List.length placements == 0 then
+        NothingPlaced
+
+    else if Set.size anchoredPoints == 0 then
         NotThroughOrigin
 
     else if Set.size anchoredPoints == 1 then
@@ -192,25 +196,37 @@ scoreLine wordlist line =
                 else
                     Nothing
             }
+
+        rotate amount list =
+            List.drop amount list ++ List.take amount list
+
+        cells =
+            line
+                |> Array.toList
+                |> List.map
+                    (\cell ->
+                        case cell of
+                            ( mult, Preview tile ) ->
+                                Just { tile = tile, isPreview = True, multiplier = mult }
+
+                            ( mult, Placed tile ) ->
+                                Just { tile = tile, isPreview = False, multiplier = mult }
+
+                            _ ->
+                                Nothing
+                    )
+
+        rotatedCells =
+            -- rotate so that words crossing the border are re-joined
+            cells |> rotate (List.Extra.findIndex ((==) Nothing) cells |> Maybe.withDefault 0)
+
+        newWords =
+            rotatedCells
+                |> splitByNothings
+                |> List.filter (List.any .isPreview)
+                |> List.filter (\word -> List.length word > 1)
     in
-    line
-        |> Array.toList
-        |> List.map
-            (\cell ->
-                case cell of
-                    ( mult, Preview tile ) ->
-                        Just { tile = tile, isPreview = True, multiplier = mult }
-
-                    ( mult, Placed tile ) ->
-                        Just { tile = tile, isPreview = False, multiplier = mult }
-
-                    _ ->
-                        Nothing
-            )
-        |> splitByNothings
-        |> List.filter (List.any .isPreview)
-        |> List.filter (\word -> List.length word > 1)
-        |> List.map scoreWord
+    List.map scoreWord newWords
 
 
 splitByNothings : List (Maybe a) -> List (List a)
