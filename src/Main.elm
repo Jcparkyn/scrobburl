@@ -11,7 +11,6 @@ import Html exposing (Html, a, button, div, main_, text)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
-import Html.Extra
 import List.Extra exposing (removeIfIndex)
 import Maybe
 import Point exposing (Point)

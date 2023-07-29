@@ -7,6 +7,8 @@
   --col-secondary: #5183e7;
   --col-cell: #2d2d2d;
   --grid-size: 14;
+  --grid-gap: 4px;
+  --default-board-size: calc((var(--cell-size) + var(--grid-gap)) * (var(--grid-size) + 1));
   color: white;
   background-color: var(--col-bg);
 }
@@ -21,7 +23,7 @@ main {
     "rack";
   height: 100%;
   overflow: hidden;
-  flex-basis: 1000px;
+  flex-basis: var(--default-board-size);
 }
 
 html {
@@ -40,7 +42,7 @@ body {
 .scroll-repeat-view {
   overflow: hidden;
   /* width: 800px; */
-  max-height: 900px;
+  max-height: var(--default-board-size);
   grid-area: board;
 }
 
@@ -48,7 +50,7 @@ body {
   display: grid;
   grid-template-columns: auto auto auto;
   grid-template-rows: auto auto auto;
-  grid-gap: 4px;
+  grid-gap: var(--grid-gap);
 }
 
 .grid {
@@ -56,7 +58,7 @@ body {
   grid-template-columns: repeat(var(--grid-size), var(--cell-size));
   grid-template-rows: repeat(var(--grid-size), var(--cell-size));
   user-select: none;
-  grid-gap: 4px;
+  grid-gap: var(--grid-gap);
 }
 
 .cell {
@@ -64,7 +66,7 @@ body {
 }
 
 .cell:hover {
-  outline: 3px solid #666;
+  outline: var(--grid-gap) solid #666;
   border-radius: 3px;
 }
 
