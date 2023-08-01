@@ -419,32 +419,21 @@ withPlacedTile model rackIndex =
 
         _ ->
             let
+                potentialSelectionPoints x0 y0 =
+                    List.range 1 (gridSize - 1)
+                        |> List.map
+                            (\i ->
+                                case model.selectDirection of
+                                    Right ->
+                                        Point (modBy gridSize (x0 + i)) y0
+
+                                    Down ->
+                                        Point x0 (modBy gridSize (y0 + i))
+                            )
+
                 getNextSelectedCell { x, y } =
-                    let
-                        next =
-                            case model.selectDirection of
-                                Right ->
-                                    Point (modBy gridSize (x + 1)) y
-
-                                Down ->
-                                    Point x (modBy gridSize (y + 1))
-
-                        -- TODO: Remove this
-                        inBounds =
-                            Array2D.get next.x next.y model.board /= Nothing
-
-                        nextContents =
-                            getCellContents model next
-                    in
-                    case ( inBounds, nextContents ) of
-                        ( False, _ ) ->
-                            Nothing
-
-                        ( True, Empty ) ->
-                            Just next
-
-                        _ ->
-                            getNextSelectedCell next
+                    potentialSelectionPoints x y
+                        |> List.Extra.find (\point -> getCellContents model point == Empty)
             in
             { model
                 | selectedCell =
