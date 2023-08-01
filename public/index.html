@@ -51,14 +51,43 @@
     const start = async () => {
       const wordlist = await fetch('dictionary.txt').then(res => res.text());
       // This seed isn't perfect, but it doesn't matter too much
-      const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+      const initialSeed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+      const shareUrlSupported = !!(navigator.canShare && navigator.canShare({ url: window.location.href }));
+      const clipboardWriteSupported = !!(navigator.clipboard && navigator.clipboard.writeText);
+
       const app = Elm.Main.init({
         node: document.getElementById('myapp'),
         flags: {
           wordlist,
-          initialSeed: seed,
+          initialSeed,
+          shareUrlSupported,
+          clipboardWriteSupported,
         }
       });
+
+      app.ports.shareUrl.subscribe(({queryState, useClipboard}) => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("state", queryState);
+        if (useClipboard) {
+          navigator.clipboard.writeText(url.href);
+        }
+        else if (navigator.canShare && navigator.canShare({ url: url.href })) {
+          navigator.share({ url: url.href });
+        }
+      });
+
+      const dialogBackdropCallback = (event) => {
+        if (event.target.nodeName === 'DIALOG') {
+          event.target.close();
+        }
+      }
+
+      app.ports.openDialog.subscribe((dialogId) => {
+        const dialog = document.getElementById(dialogId);
+        dialog?.removeEventListener('click', dialogBackdropCallback);
+        dialog?.addEventListener('click', dialogBackdropCallback);
+        dialog?.showModal();
+      })
     }
     start();
   </script>

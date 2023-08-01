@@ -4,7 +4,6 @@ import Array exposing (Array)
 import Array.Extra
 import Array2D exposing (Array2D)
 import Point exposing (Point)
-import Set exposing (Set)
 
 
 type alias Tile =
@@ -80,46 +79,6 @@ type alias Opponent =
     { name : String
     , score : Int
     }
-
-
-type Model
-    = Playing PlayingModel
-
-
-type alias PlayingModel =
-    { selectedCell : Maybe Point
-    , selectDirection : SelectDirection
-    , board : Tiles
-    , rack : RackState
-    , opponent : Opponent
-    , selfName : String
-    , selfScore : Int
-    , playedTurns : List PlayedTurn
-    , initialSeed : Int
-    , wordlist : Set String
-    }
-
-
-getCellContents : PlayingModel -> Point -> CellContents
-getCellContents model point =
-    case model.board |> Array2D.get point.x point.y of
-        Just (Just tile) ->
-            Placed tile
-
-        _ ->
-            let
-                previewTile =
-                    model.rack
-                        |> Array.toList
-                        |> List.filter (\tile -> tile.placement == Just point)
-                        |> List.head
-            in
-            case previewTile of
-                Just tile ->
-                    Preview tile.tile
-
-                _ ->
-                    Empty
 
 
 getAllCellContents : { board : Tiles, rack : RackState } -> Array2D CellContents

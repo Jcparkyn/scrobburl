@@ -1,4 +1,4 @@
-module UrlState exposing (UrlModel, decodeUrl, getNextUrl)
+module UrlState exposing (UrlModel, decodeUrl, getNextUrlState)
 
 import Base64
 import Bytes
@@ -10,7 +10,6 @@ import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
 import Point exposing (Point)
 import Url
-import Url.Builder
 import Url.Parser
 import Url.Parser.Query
 
@@ -51,8 +50,8 @@ decompressFromBase64 str =
         |> Result.andThen (decodeAsString >> Result.fromMaybe ByteDecodeError)
 
 
-getNextUrl : UrlModel -> String
-getNextUrl model =
+getNextUrlState : UrlModel -> String
+getNextUrlState model =
     let
         bodyJson =
             E.encode 0 (getNextUrlBody model)
@@ -60,7 +59,8 @@ getNextUrl model =
         bodyBase64 =
             compressToBase64 bodyJson
     in
-    Url.Builder.relative [] [ Url.Builder.string "state" bodyBase64 ]
+    -- Url.Builder.relative [] [ Url.Builder.string "state" bodyBase64 ]
+    bodyBase64
 
 
 getNextUrlBody : UrlModel -> E.Value

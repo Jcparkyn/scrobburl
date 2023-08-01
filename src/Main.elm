@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Array exposing (Array)
 import Array.Extra
@@ -7,17 +7,19 @@ import Array2D.Extra
 import Browser
 import Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, scoreMove)
 import Data exposing (..)
-import Html exposing (Html, a, button, div, main_, text)
+import Html exposing (Html, a, br, button, div, h1, main_, p, text)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target)
 import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
+import Html.Extra
 import List.Extra exposing (removeIfIndex)
 import Maybe
 import Point exposing (Point)
 import Random
 import Set exposing (Set)
 import Url
-import UrlState exposing (decodeUrl, getNextUrl)
+import Url.Builder
+import UrlState exposing (decodeUrl, getNextUrlState)
 
 
 main : Program Flags Model Msg
@@ -33,7 +35,60 @@ main =
 
 
 
+-- PORTS
+
+
+port shareUrl : { queryState : String, useClipboard : Bool } -> Cmd msg
+
+
+port openDialog : String -> Cmd msg
+
+
+
 -- MODEL
+
+
+type Model
+    = Playing PlayingModel
+
+
+type alias PlayingModel =
+    { selectedCell : Maybe Point
+    , selectDirection : SelectDirection
+    , board : Tiles
+    , rack : RackState
+    , opponent : Opponent
+    , selfName : String
+    , selfScore : Int
+    , playedTurns : List PlayedTurn
+    , initialSeed : Int
+    , wordlist : Set String
+    , shareUrlSupported : Bool
+    , clipboardWriteSupported : Bool
+    , submitDialogState : SubmitDialogState
+    }
+
+
+getCellContents : PlayingModel -> Point -> CellContents
+getCellContents model point =
+    case model.board |> Array2D.get point.x point.y of
+        Just (Just tile) ->
+            Placed tile
+
+        _ ->
+            let
+                previewTile =
+                    model.rack
+                        |> Array.toList
+                        |> List.filter (\tile -> tile.placement == Just point)
+                        |> List.head
+            in
+            case previewTile of
+                Just tile ->
+                    Preview tile.tile
+
+                _ ->
+                    Empty
 
 
 initialBoard : Tiles
@@ -86,6 +141,8 @@ randomTile =
 type alias Flags =
     { wordlist : String
     , initialSeed : Int
+    , shareUrlSupported : Bool
+    , clipboardWriteSupported : Bool
     }
 
 
@@ -99,7 +156,7 @@ init : Flags -> Url.Url -> key -> ( Model, Cmd msg )
 init flags url _ =
     case Debug.log "URL model" (decodeUrl url) of
         Ok model ->
-            ( Playing (urlModelToModel model (parseWordList flags.wordlist))
+            ( Playing (urlModelToModel model flags)
             , Cmd.none
             )
 
@@ -127,6 +184,9 @@ init flags url _ =
                 , playedTurns = []
                 , initialSeed = flags.initialSeed
                 , wordlist = parseWordList flags.wordlist
+                , shareUrlSupported = flags.shareUrlSupported
+                , clipboardWriteSupported = flags.clipboardWriteSupported
+                , submitDialogState = { clipboardSuccess = False }
                 }
             , Cmd.none
             )
@@ -139,6 +199,8 @@ init flags url _ =
 type Msg
     = Select Point
     | PlaceTile Int
+    | OpenDialog String
+    | ShareUrl { queryState : String, useClipboard : Bool }
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
 
@@ -260,11 +322,14 @@ getNextGameState wordlist turn state =
             }
 
 
-urlModelToModel : UrlState.UrlModel -> Set String -> PlayingModel
-urlModelToModel model wordlist =
+urlModelToModel : UrlState.UrlModel -> Flags -> PlayingModel
+urlModelToModel model flags =
     let
         initialState =
             getInitialGameState (Random.initialSeed model.initialSeed)
+
+        wordlist =
+            parseWordList flags.wordlist
 
         finalState =
             List.foldr (getNextGameState wordlist) initialState model.turns
@@ -284,6 +349,9 @@ urlModelToModel model wordlist =
     , playedTurns = model.turns
     , initialSeed = model.initialSeed
     , wordlist = wordlist
+    , shareUrlSupported = flags.shareUrlSupported
+    , clipboardWriteSupported = flags.clipboardWriteSupported
+    , submitDialogState = { clipboardSuccess = False }
     }
 
 
@@ -297,6 +365,14 @@ updatePlaying msg model =
 
         PlaceTile rackIndex ->
             ( Playing (withPlacedTile model rackIndex), Cmd.none )
+
+        ShareUrl url ->
+            ( Playing { model | submitDialogState = { clipboardSuccess = True } }
+            , shareUrl url
+            )
+
+        OpenDialog dialogId ->
+            ( Playing { model | submitDialogState = { clipboardSuccess = False } }, openDialog dialogId )
 
         _ ->
             ( Playing model, Cmd.none )
@@ -353,6 +429,7 @@ withPlacedTile model rackIndex =
                                 Down ->
                                     Point x (modBy gridSize (y + 1))
 
+                        -- TODO: Remove this
                         inBounds =
                             Array2D.get next.x next.y model.board /= Nothing
 
@@ -372,6 +449,7 @@ withPlacedTile model rackIndex =
             { model
                 | selectedCell =
                     model.selectedCell |> Maybe.andThen getNextSelectedCell
+                , submitDialogState = { clipboardSuccess = False }
                 , rack =
                     model.rack
                         |> updateElement rackIndex (\t -> { t | placement = model.selectedCell })
@@ -388,23 +466,78 @@ updateElement index fun array =
             array
 
 
-
--- VIEW
-
-
 view : Model -> Browser.Document Msg
 view model =
     { body =
         case model of
-            Playing model_ ->
+            Playing pm ->
+                let
+                    checkerResult =
+                        scoreMove (CheckerModel pm.board pm.rack pm.wordlist)
+
+                    isMoveValid =
+                        case checkerResult of
+                            ValidPlacement { invalidWords } ->
+                                List.isEmpty invalidWords
+
+                            _ ->
+                                False
+                in
                 [ main_ []
-                    [ viewScoreHeader model_
-                    , viewGrid model_
-                    , viewRack model_.rack
+                    [ viewScoreHeader pm checkerResult
+                    , viewGrid pm
+                    , viewRack pm.rack
+                    , viewActionButtons isMoveValid
                     ]
                 ]
     , title = "Scrobburl"
     }
+
+
+type alias SubmitDialogState =
+    { clipboardSuccess : Bool }
+
+
+viewSubmitDialog : String -> Bool -> Bool -> SubmitDialogState -> Html Msg
+viewSubmitDialog urlQueryState shareUrlSupported clipboardWriteSupported state =
+    Html.node "dialog"
+        [ id "submitDialog" ]
+        [ h1 [] [ text "Play turn" ]
+        , p [] [ text "Send a link to your opponent so they can play the next turn." ]
+        , if shareUrlSupported || clipboardWriteSupported then
+            div [ class "submit-button-container" ]
+                [ Html.Extra.viewIf shareUrlSupported <|
+                    button
+                        [ onClick (ShareUrl { queryState = urlQueryState, useClipboard = False }) ]
+                        [ text "Share link" ]
+                , Html.Extra.viewIf clipboardWriteSupported <|
+                    button
+                        [ onClick (ShareUrl { queryState = urlQueryState, useClipboard = True }) ]
+                        (if state.clipboardSuccess then
+                            [ text "Copied to", br [] [], text "clipboard!" ]
+
+                         else
+                            [ text "Copy link to clipboard" ]
+                        )
+                ]
+
+          else
+            div [ style "margin-bottom" "16px" ]
+                [ p [] [ text "Your browser doesn't support sharing or copying to the clipboard, so instead you can right click this link and choose \"Copy Link\"." ]
+                , a
+                    [ href (Url.Builder.relative [] [ Url.Builder.string "state" urlQueryState ])
+                    , target "blank"
+                    , style "font-size" "1.5em"
+                    , style "align-self" "center"
+                    , style "padding-bottom" "0.5em"
+                    ]
+                    [ text "next turn" ]
+                ]
+        , Html.form []
+            [ button [ Html.Attributes.attribute "formmethod" "dialog", id "closeDialogButton" ]
+                [ text "Cancel" ]
+            ]
+        ]
 
 
 nbsp : String
@@ -412,8 +545,8 @@ nbsp =
     "\u{00A0}"
 
 
-viewScoreHeader : PlayingModel -> Html Msg
-viewScoreHeader model =
+viewScoreHeader : PlayingModel -> CheckerResult -> Html Msg
+viewScoreHeader model checkerResult =
     div [ style "grid-area" "score-header", class "score-header" ]
         [ div [ style "display" "flex" ]
             [ div [ style "flex" "1" ]
@@ -428,7 +561,7 @@ viewScoreHeader model =
                 , text (nbsp ++ "points")
                 ]
             ]
-        , case scoreMove (CheckerModel model.board model.rack model.wordlist) of
+        , case checkerResult of
             NothingPlaced ->
                 text nbsp
 
@@ -437,8 +570,11 @@ viewScoreHeader model =
                     [] ->
                         div []
                             [ text ("Move: " ++ String.fromInt score ++ " points. ")
-                            , a [ href (getNextUrl (modelToUrlModel model)), target "blank" ]
-                                [ text "Next turn" ]
+                            , viewSubmitDialog
+                                (getNextUrlState (modelToUrlModel model))
+                                model.shareUrlSupported
+                                model.clipboardWriteSupported
+                                model.submitDialogState
                             ]
 
                     [ invalidWord ] ->
@@ -458,6 +594,15 @@ viewScoreHeader model =
 
             NotInLine ->
                 text "All your tiles must be in a single row or column"
+        ]
+
+
+viewActionButtons : Bool -> Html Msg
+viewActionButtons isMoveValid =
+    div [ class "bottom-action-buttons" ]
+        [ button
+            [ onClick (OpenDialog "submitDialog"), disabled (not isMoveValid) ]
+            [ text "Play turn" ]
         ]
 
 
@@ -481,14 +626,6 @@ viewRackTile index tile =
         [ class "rack-tile"
         , onClick (PlaceTile index)
         , disabled (tile.placement /= Nothing)
-        , style "opacity"
-            (case tile.placement of
-                Just _ ->
-                    "0.5"
-
-                Nothing ->
-                    "1"
-            )
         ]
         [ viewTile tile.tile True ]
 
