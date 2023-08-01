@@ -1,4 +1,4 @@
-module Point exposing (..)
+module Point exposing (Point, toTuple)
 
 
 type alias Point =

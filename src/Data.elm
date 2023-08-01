@@ -1,4 +1,4 @@
-module Data exposing (..)
+module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, Opponent, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, playedTurnToRackState, swapDirection)
 
 import Array exposing (Array)
 import Array.Extra
@@ -34,19 +34,6 @@ type CellContents
 
 type alias Multiplier =
     { letter : Int, word : Int }
-
-
-getTile : CellContents -> Maybe Tile
-getTile cell =
-    case cell of
-        Empty ->
-            Nothing
-
-        Preview tile ->
-            Just tile
-
-        Placed tile ->
-            Just tile
 
 
 type alias CellProps =

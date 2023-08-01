@@ -1,4 +1,4 @@
-port module Main exposing (..)
+port module Main exposing (Flags, Model, Msg, PlayingModel, PostTurnGameState, PostTurnPlayerState, SubmitDialogState, main)
 
 import Array exposing (Array)
 import Array.Extra
@@ -6,10 +6,9 @@ import Array2D
 import Array2D.Extra
 import Browser
 import Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, scoreMove)
-import Data exposing (..)
+import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, Opponent, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, playedTurnToRackState, swapDirection)
 import Html exposing (Html, a, br, button, div, h1, main_, p, text)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target)
-import Html.Attributes.Autocomplete exposing (DetailedCompletion(..))
 import Html.Events exposing (onClick)
 import Html.Extra
 import List.Extra exposing (removeIfIndex)

@@ -1,4 +1,4 @@
-module Checker exposing (CheckerModel, CheckerResult(..), getAllLines, getLetterValue, gridSize, letterValues, multipliers, scoreMove)
+module Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, multipliers, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
@@ -75,20 +75,6 @@ multipliers =
 scoreMove : CheckerModel -> CheckerResult
 scoreMove model =
     let
-        cellContents =
-            getAllCellContents { board = model.board, rack = model.rack }
-
-        occupied =
-            cellContents |> Array2D.map ((/=) Empty)
-
-        occupiedCount =
-            cellContents
-                |> Array2D.Extra.flattenToList
-                |> List.Extra.count ((/=) Empty)
-
-        anchoredPoints =
-            dfsGrid (Point 7 7) occupied
-
         placements =
             model.rack
                 |> Array.toList
@@ -102,36 +88,48 @@ scoreMove model =
                 first :: rest ->
                     List.all (\p -> p.x == first.x) rest
                         || List.all (\p -> p.y == first.y) rest
-
-        wordScores =
-            cellContents
-                |> Array2D.Extra.map2 Tuple.pair multipliers
-                |> getAllLines
-                |> List.concatMap (scoreLine model.wordlist)
     in
     if List.length placements == 0 then
         NothingPlaced
 
-    else if Set.size anchoredPoints == 0 then
-        NotThroughOrigin
-
-    else if Set.size anchoredPoints == 1 then
-        NotEnoughTiles
-
     else if not <| isInLine placements then
         NotInLine
 
-    else if Set.size anchoredPoints < occupiedCount then
-        NotAnchored
-
     else
-        ValidPlacement
-            { score = wordScores |> List.filterMap .score |> List.sum
-            , invalidWords =
-                wordScores
-                    |> List.filter (\s -> s.score == Nothing)
-                    |> List.map .word
-            }
+        let
+            cellContents =
+                getAllCellContents { board = model.board, rack = model.rack }
+
+            occupied =
+                cellContents |> Array2D.map ((/=) Empty)
+
+            anchoredPoints =
+                dfsGrid (Point 7 7) occupied
+        in
+        if Set.size anchoredPoints == 0 then
+            NotThroughOrigin
+
+        else if Set.size anchoredPoints == 1 then
+            NotEnoughTiles
+
+        else if Set.size anchoredPoints < Array2D.Extra.count identity occupied then
+            NotAnchored
+
+        else
+            let
+                wordScores =
+                    cellContents
+                        |> Array2D.Extra.map2 Tuple.pair multipliers
+                        |> getAllLines
+                        |> List.concatMap (scoreLine model.wordlist)
+            in
+            ValidPlacement
+                { score = wordScores |> List.filterMap .score |> List.sum
+                , invalidWords =
+                    wordScores
+                        |> List.filter (\s -> s.score == Nothing)
+                        |> List.map .word
+                }
 
 
 dfsGrid : Point -> Array2D Bool -> Set ( Int, Int )
@@ -162,8 +160,7 @@ getAllLines grid =
 
         columns =
             List.range 0 (grid.columns - 1)
-                |> List.map (\col -> Array2D.getColumn col grid)
-                |> List.filterMap identity
+                |> List.filterMap (\col -> Array2D.getColumn col grid)
     in
     rows ++ columns
 
