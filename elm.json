@@ -17,6 +17,7 @@
             "elm-community/array-extra": "2.6.0",
             "elm-community/html-extra": "3.4.0",
             "elm-community/list-extra": "8.7.0",
+            "elm-community/random-extra": "3.2.0",
             "folkertdev/elm-flate": "2.0.5",
             "tortus/elm-array-2d": "3.0.0"
         },

@@ -15,6 +15,7 @@ import List.Extra exposing (removeIfIndex)
 import Maybe
 import Point exposing (Point)
 import Random
+import Random.List
 import Set exposing (Set)
 import Url
 import Url.Builder
@@ -55,6 +56,7 @@ type alias PlayingModel =
     { selectedCell : Maybe Point
     , selectDirection : SelectDirection
     , board : Tiles
+    , bag : List Tile
     , rack : RackState
     , opponent : Opponent
     , selfName : String
@@ -95,7 +97,7 @@ initialBoard =
     Array2D.repeat gridSize gridSize Nothing
 
 
-initialLetterCounts : List ( Char, Int )
+initialLetterCounts : List ( Tile, Int )
 initialLetterCounts =
     [ ( 'A', 8 )
     , ( 'B', 2 )
@@ -126,15 +128,15 @@ initialLetterCounts =
     ]
 
 
-randomTile : Random.Generator Tile
-randomTile =
-    case initialLetterCounts |> List.map (\( char, count ) -> ( toFloat count, char )) of
-        first :: rest ->
-            Random.weighted first rest
+initialBag : List Tile
+initialBag =
+    initialLetterCounts
+        |> List.concatMap (\( tile, count ) -> List.repeat count tile)
 
-        -- This branch can never be reached
-        _ ->
-            Random.constant 'A'
+
+drawRandomTiles : Int -> List Tile -> Random.Generator ( List Tile, List Tile )
+drawRandomTiles count bag =
+    Random.List.choices count bag
 
 
 type alias Flags =
@@ -171,6 +173,7 @@ init flags url _ =
                 { selectedCell = Nothing
                 , selectDirection = Right
                 , board = initialBoard
+                , bag = initialState.bag
                 , rack =
                     initialState.nextPlayer.rack
                         |> Array.map (\c -> RackTile c Nothing)
@@ -245,6 +248,7 @@ type alias PostTurnGameState =
     { board : Tiles
     , nextPlayer : PostTurnPlayerState
     , lastPlayer : PostTurnPlayerState
+    , bag : List Tile
     , seed : Random.Seed
     }
 
@@ -253,17 +257,18 @@ getInitialGameState : Random.Seed -> PostTurnGameState
 getInitialGameState seed0 =
     let
         rackGenerator =
-            Random.list 8 randomTile |> Random.map Array.fromList
+            drawRandomTiles 8
 
-        ( rack1, seed1 ) =
-            Random.step rackGenerator seed0
+        ( ( rack1, bag1 ), seed1 ) =
+            Random.step (rackGenerator initialBag) seed0
 
-        ( rack2, seed2 ) =
-            Random.step rackGenerator seed1
+        ( ( rack2, bag2 ), seed2 ) =
+            Random.step (rackGenerator bag1) seed1
     in
     { board = initialBoard
-    , nextPlayer = { rack = rack1, score = 0, name = "Player 1" }
-    , lastPlayer = { rack = rack2, score = 0, name = "Player 2" }
+    , nextPlayer = { rack = Array.fromList rack1, score = 0, name = "Player 1" }
+    , lastPlayer = { rack = Array.fromList rack2, score = 0, name = "Player 2" }
+    , bag = bag2
     , seed = seed2
     }
 
@@ -295,13 +300,13 @@ getNextGameState wordlist turn state =
                             result.score
 
                         _ ->
-                            0
+                            -10000
 
-                -- TODO: Use real probabilities from bag
+                -- TODO: Handle empty bag
                 newTilesGenerator =
-                    Random.list (List.length placements) randomTile
+                    drawRandomTiles (List.length placements) state.bag
 
-                ( newTiles, seed ) =
+                ( ( newTiles, newBag ), seed ) =
                     Random.step newTilesGenerator state.seed
             in
             { board =
@@ -317,6 +322,7 @@ getNextGameState wordlist turn state =
                 , name = state.nextPlayer.name
                 , score = state.nextPlayer.score + score
                 }
+            , bag = newBag
             , seed = seed
             }
 
@@ -336,6 +342,7 @@ urlModelToModel model flags =
     { selectedCell = Nothing
     , selectDirection = Right
     , board = finalState.board
+    , bag = finalState.bag
     , rack =
         finalState.nextPlayer.rack
             |> Array.map (\tile -> RackTile tile Nothing)
@@ -486,12 +493,43 @@ type alias SubmitDialogState =
     { clipboardSuccess : Bool }
 
 
-viewSubmitDialog : String -> Bool -> Bool -> SubmitDialogState -> Html Msg
-viewSubmitDialog urlQueryState shareUrlSupported clipboardWriteSupported state =
+type SubmitDialogGameInfo
+    = StillPlaying
+    | GameOver
+        { selfScore : Int
+        , opponentScore : Int
+        , won : Bool
+        }
+
+
+viewSubmitDialog : SubmitDialogGameInfo -> String -> Bool -> Bool -> SubmitDialogState -> Html Msg
+viewSubmitDialog gameInfo urlQueryState shareUrlSupported clipboardWriteSupported state =
     Html.node "dialog"
         [ id "submitDialog" ]
-        [ h1 [] [ text "Play turn" ]
-        , p [] [ text "Send a link to your opponent so they can play the next turn." ]
+        [ h1 []
+            [ text
+                (case gameInfo of
+                    StillPlaying ->
+                        "Play turn"
+
+                    GameOver { won, selfScore, opponentScore } ->
+                        if won then
+                            "You won by " ++ String.fromInt (selfScore - opponentScore) ++ " points!"
+
+                        else
+                            "You lost by " ++ String.fromInt (opponentScore - selfScore) ++ " points"
+                )
+            ]
+        , p []
+            [ text
+                (case gameInfo of
+                    StillPlaying ->
+                        "Send a link to your opponent so they can play the next turn."
+
+                    GameOver _ ->
+                        "Send a link to your opponent so they can see your final move."
+                )
+            ]
         , if shareUrlSupported || clipboardWriteSupported then
             div [ class "submit-button-container" ]
                 [ Html.Extra.viewIf shareUrlSupported <|
@@ -556,9 +594,28 @@ viewScoreHeader model checkerResult =
             ValidPlacement { score, invalidWords } ->
                 case invalidWords of
                     [] ->
+                        -- This logic should be moved somewhere else
+                        let
+                            gameOver =
+                                List.isEmpty model.bag && (model.rack |> Array.toList |> List.all (\t -> t.placement /= Nothing))
+
+                            gameInfo =
+                                if gameOver then
+                                    GameOver
+                                        { selfScore = model.selfScore + score
+
+                                        -- TODO: subtract opponent's tiles
+                                        , opponentScore = model.opponent.score
+                                        , won = model.selfScore + score > model.opponent.score
+                                        }
+
+                                else
+                                    StillPlaying
+                        in
                         div []
                             [ text ("Move: " ++ String.fromInt score ++ " points. ")
                             , viewSubmitDialog
+                                gameInfo
                                 (getNextUrlState (modelToUrlModel model))
                                 model.shareUrlSupported
                                 model.clipboardWriteSupported
