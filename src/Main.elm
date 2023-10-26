@@ -253,6 +253,76 @@ type alias PostTurnGameState =
     }
 
 
+type GameOverType
+    = Won
+    | Lost
+    | Draw
+
+
+type alias MoveOutcome =
+    { selfScore : Int
+    , opponentScore : Int
+    , isMoveValid : Bool
+    , checkerResult : CheckerResult
+    , gameOver : Maybe GameOverType
+    }
+
+
+getMoveOutcome :
+    { board : Tiles
+    , rack : RackState
+    , wordlist : Set String
+    , bag : List Tile
+    , selfScore : Int
+    , opponentScore : Int
+    }
+    -> MoveOutcome
+getMoveOutcome model =
+    let
+        checkerResult =
+            scoreMove (CheckerModel model.board model.rack model.wordlist)
+
+        ( isMoveValid, score ) =
+            case checkerResult of
+                ValidPlacement result ->
+                    ( List.isEmpty result.invalidWords, result.score )
+
+                _ ->
+                    ( False, 0 )
+
+        gameOver =
+            List.isEmpty model.bag && (model.rack |> Array.toList |> List.all (\t -> t.placement /= Nothing))
+
+        newSelfScore =
+            model.selfScore + score
+
+        -- TODO: Subtract tile values
+        newOpponentScore =
+            model.opponentScore
+
+        getGameOverType s1 s2 =
+            if s1 > s2 then
+                Won
+
+            else if s1 == s2 then
+                Draw
+
+            else
+                Lost
+    in
+    { selfScore = newSelfScore
+    , opponentScore = newOpponentScore
+    , checkerResult = checkerResult
+    , isMoveValid = isMoveValid
+    , gameOver =
+        if gameOver then
+            Just (getGameOverType newSelfScore newOpponentScore)
+
+        else
+            Nothing
+    }
+
+
 getInitialGameState : Random.Seed -> PostTurnGameState
 getInitialGameState seed0 =
     let
@@ -293,16 +363,17 @@ getNextGameState wordlist turn state =
                 checkerRack =
                     playedTurnToRackState turn state.nextPlayer.rack
 
-                -- TODO: Return nothing if move is invalid
-                score =
-                    case scoreMove (CheckerModel state.board checkerRack wordlist) of
-                        ValidPlacement result ->
-                            result.score
+                outcome =
+                    getMoveOutcome
+                        { board = state.board
+                        , rack = checkerRack
+                        , wordlist = wordlist
+                        , bag = state.bag
+                        , selfScore = state.nextPlayer.score
+                        , opponentScore = state.lastPlayer.score
+                        }
 
-                        _ ->
-                            -10000
-
-                -- TODO: Handle empty bag
+                -- TODO: Handle game over
                 newTilesGenerator =
                     drawRandomTiles (List.length placements) state.bag
 
@@ -320,7 +391,7 @@ getNextGameState wordlist turn state =
                         |> List.append newTiles
                         |> Array.fromList
                 , name = state.nextPlayer.name
-                , score = state.nextPlayer.score + score
+                , score = outcome.selfScore
                 }
             , bag = newBag
             , seed = seed
@@ -467,22 +538,21 @@ view model =
         case model of
             Playing pm ->
                 let
-                    checkerResult =
-                        scoreMove (CheckerModel pm.board pm.rack pm.wordlist)
-
-                    isMoveValid =
-                        case checkerResult of
-                            ValidPlacement { invalidWords } ->
-                                List.isEmpty invalidWords
-
-                            _ ->
-                                False
+                    moveOutcome =
+                        getMoveOutcome
+                            { board = pm.board
+                            , rack = pm.rack
+                            , wordlist = pm.wordlist
+                            , bag = pm.bag
+                            , selfScore = pm.selfScore
+                            , opponentScore = pm.opponent.score
+                            }
                 in
                 [ main_ []
-                    [ viewScoreHeader pm checkerResult
+                    [ viewScoreHeader pm moveOutcome
                     , viewGrid pm
                     , viewRack pm.rack
-                    , viewActionButtons isMoveValid
+                    , viewActionButtons moveOutcome.isMoveValid
                     ]
                 ]
     , title = "Scrobburl"
@@ -493,40 +563,33 @@ type alias SubmitDialogState =
     { clipboardSuccess : Bool }
 
 
-type SubmitDialogGameInfo
-    = StillPlaying
-    | GameOver
-        { selfScore : Int
-        , opponentScore : Int
-        , won : Bool
-        }
-
-
-viewSubmitDialog : SubmitDialogGameInfo -> String -> Bool -> Bool -> SubmitDialogState -> Html Msg
-viewSubmitDialog gameInfo urlQueryState shareUrlSupported clipboardWriteSupported state =
+viewSubmitDialog : MoveOutcome -> String -> Bool -> Bool -> SubmitDialogState -> Html Msg
+viewSubmitDialog outcome urlQueryState shareUrlSupported clipboardWriteSupported state =
     Html.node "dialog"
         [ id "submitDialog" ]
         [ h1 []
             [ text
-                (case gameInfo of
-                    StillPlaying ->
+                (case outcome.gameOver of
+                    Nothing ->
                         "Play turn"
 
-                    GameOver { won, selfScore, opponentScore } ->
-                        if won then
-                            "You won by " ++ String.fromInt (selfScore - opponentScore) ++ " points!"
+                    Just Won ->
+                        "You won by " ++ String.fromInt (outcome.selfScore - outcome.opponentScore) ++ " points!"
 
-                        else
-                            "You lost by " ++ String.fromInt (opponentScore - selfScore) ++ " points"
+                    Just Lost ->
+                        "You lost by " ++ String.fromInt (outcome.opponentScore - outcome.selfScore) ++ " points"
+
+                    Just Draw ->
+                        "You tied with " ++ String.fromInt outcome.selfScore ++ " points"
                 )
             ]
         , p []
             [ text
-                (case gameInfo of
-                    StillPlaying ->
+                (case outcome.gameOver of
+                    Nothing ->
                         "Send a link to your opponent so they can play the next turn."
 
-                    GameOver _ ->
+                    Just _ ->
                         "Send a link to your opponent so they can see your final move."
                 )
             ]
@@ -571,8 +634,8 @@ nbsp =
     "\u{00A0}"
 
 
-viewScoreHeader : PlayingModel -> CheckerResult -> Html Msg
-viewScoreHeader model checkerResult =
+viewScoreHeader : PlayingModel -> MoveOutcome -> Html Msg
+viewScoreHeader model moveOutcome =
     div [ style "grid-area" "score-header", class "score-header" ]
         [ div [ style "display" "flex" ]
             [ div [ style "flex" "1" ]
@@ -587,35 +650,17 @@ viewScoreHeader model checkerResult =
                 , text (nbsp ++ "points")
                 ]
             ]
-        , case checkerResult of
+        , case moveOutcome.checkerResult of
             NothingPlaced ->
                 text nbsp
 
             ValidPlacement { score, invalidWords } ->
                 case invalidWords of
                     [] ->
-                        -- This logic should be moved somewhere else
-                        let
-                            gameOver =
-                                List.isEmpty model.bag && (model.rack |> Array.toList |> List.all (\t -> t.placement /= Nothing))
-
-                            gameInfo =
-                                if gameOver then
-                                    GameOver
-                                        { selfScore = model.selfScore + score
-
-                                        -- TODO: subtract opponent's tiles
-                                        , opponentScore = model.opponent.score
-                                        , won = model.selfScore + score > model.opponent.score
-                                        }
-
-                                else
-                                    StillPlaying
-                        in
                         div []
                             [ text ("Move: " ++ String.fromInt score ++ " points. ")
                             , viewSubmitDialog
-                                gameInfo
+                                moveOutcome
                                 (getNextUrlState (modelToUrlModel model))
                                 model.shareUrlSupported
                                 model.clipboardWriteSupported
