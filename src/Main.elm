@@ -446,7 +446,16 @@ updatePlaying msg model =
             ( { model | submitDialogState = { clipboardSuccess = False } }, openDialog dialogId )
 
         StartNewGame ->
-            ( model, Nav.load "/" )
+            ( model, Nav.load "" )
+
+        LinkClicked urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    -- We don't really need/want client-side routing, so just always load.
+                    ( model, Nav.load (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Nav.load href )
 
         _ ->
             ( model, Cmd.none )
@@ -664,7 +673,10 @@ viewScoreHeader : PlayingModel -> MoveOutcome -> Html Msg
 viewScoreHeader model moveOutcome =
     div [ style "grid-area" "score-header", class "score-header" ]
         [ Html.Extra.viewIf model.gameOver <|
-            h2 [] [ text <| gameOverText model.selfScore model.opponent.score ]
+            h2 []
+                [ text <| gameOverText model.selfScore model.opponent.score ++ " "
+                , a [ href "?", style "color" "var(--col-primary)" ] [ text "Start new game" ]
+                ]
         , div [ style "display" "flex", style "margin-bottom" "4px" ]
             [ div [ style "flex" "1" ]
                 [ text ("You (" ++ model.selfName ++ "): ")
@@ -720,10 +732,6 @@ viewActionButtons outcome gameOver =
             button
                 [ onClick (OpenDialog "submitDialog"), disabled (not outcome.isMoveValid) ]
                 [ text "Play turn" ]
-        , Html.Extra.viewIf gameOver <|
-            button
-                [ onClick StartNewGame ]
-                [ text "Start new game" ]
         ]
 
 
