@@ -2,12 +2,13 @@ port module Main exposing (Flags, Model, Msg, PlayingModel, PostTurnGameState, P
 
 import Array exposing (Array)
 import Array.Extra
-import Array2D
+import Array2D exposing (Array2D)
 import Array2D.Extra
 import Browser
+import Browser.Navigation as Nav
 import Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, scoreMove)
-import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, Opponent, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, playedTurnToRackState, swapDirection)
-import Html exposing (Html, a, br, button, div, h1, main_, p, text)
+import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, playedTurnToRackState, swapDirection)
+import Html exposing (Html, a, br, button, div, h1, h2, main_, p, text)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target)
 import Html.Events exposing (onClick)
 import Html.Extra
@@ -58,7 +59,10 @@ type alias PlayingModel =
     , board : Tiles
     , bag : List Tile
     , rack : RackState
-    , opponent : Opponent
+    , opponent :
+        { name : String
+        , score : Int
+        }
     , selfName : String
     , selfScore : Int
     , playedTurns : List PlayedTurn
@@ -67,6 +71,33 @@ type alias PlayingModel =
     , shareUrlSupported : Bool
     , clipboardWriteSupported : Bool
     , submitDialogState : SubmitDialogState
+    , gameOver : Bool
+    }
+
+
+type alias PostTurnPlayerState =
+    { rack : Array Tile
+    , name : String
+    , score : Int
+    }
+
+
+type alias PostTurnGameState =
+    { board : Tiles
+    , nextPlayer : PostTurnPlayerState
+    , lastPlayer : PostTurnPlayerState
+    , bag : List Tile
+    , seed : Random.Seed
+    , gameOver : Bool
+    }
+
+
+type alias MoveOutcome =
+    { selfScore : Int
+    , opponentScore : Int
+    , isMoveValid : Bool
+    , checkerResult : CheckerResult
+    , gameOver : Bool
     }
 
 
@@ -157,7 +188,7 @@ init : Flags -> Url.Url -> key -> ( Model, Cmd msg )
 init flags url _ =
     case Debug.log "URL model" (decodeUrl url) of
         Ok model ->
-            ( Playing (urlModelToModel model flags)
+            ( urlModelToModel model flags
             , Cmd.none
             )
 
@@ -189,6 +220,7 @@ init flags url _ =
                 , shareUrlSupported = flags.shareUrlSupported
                 , clipboardWriteSupported = flags.clipboardWriteSupported
                 , submitDialogState = { clipboardSuccess = False }
+                , gameOver = initialState.gameOver
                 }
             , Cmd.none
             )
@@ -203,6 +235,7 @@ type Msg
     | PlaceTile Int
     | OpenDialog String
     | ShareUrl { queryState : String, useClipboard : Bool }
+    | StartNewGame
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
 
@@ -210,8 +243,9 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case model of
-        Playing model_ ->
-            updatePlaying msg model_
+        Playing pm ->
+            updatePlaying msg pm
+                |> Tuple.mapFirst Playing
 
 
 modelToUrlModel : PlayingModel -> UrlState.UrlModel
@@ -234,37 +268,6 @@ modelToUrlModel model =
         { name = model.opponent.name
         }
     , initialSeed = model.initialSeed
-    }
-
-
-type alias PostTurnPlayerState =
-    { rack : Array Tile
-    , name : String
-    , score : Int
-    }
-
-
-type alias PostTurnGameState =
-    { board : Tiles
-    , nextPlayer : PostTurnPlayerState
-    , lastPlayer : PostTurnPlayerState
-    , bag : List Tile
-    , seed : Random.Seed
-    }
-
-
-type GameOverType
-    = Won
-    | Lost
-    | Draw
-
-
-type alias MoveOutcome =
-    { selfScore : Int
-    , opponentScore : Int
-    , isMoveValid : Bool
-    , checkerResult : CheckerResult
-    , gameOver : Maybe GameOverType
     }
 
 
@@ -291,7 +294,8 @@ getMoveOutcome model =
                     ( False, 0 )
 
         gameOver =
-            List.isEmpty model.bag && (model.rack |> Array.toList |> List.all (\t -> t.placement /= Nothing))
+            List.isEmpty model.bag
+                && (model.rack |> Array.toList |> List.all (\t -> t.placement /= Nothing))
 
         newSelfScore =
             model.selfScore + score
@@ -299,28 +303,14 @@ getMoveOutcome model =
         -- TODO: Subtract tile values
         newOpponentScore =
             model.opponentScore
-
-        getGameOverType s1 s2 =
-            if s1 > s2 then
-                Won
-
-            else if s1 == s2 then
-                Draw
-
-            else
-                Lost
     in
     { selfScore = newSelfScore
     , opponentScore = newOpponentScore
     , checkerResult = checkerResult
     , isMoveValid = isMoveValid
-    , gameOver =
-        if gameOver then
-            Just (getGameOverType newSelfScore newOpponentScore)
-
-        else
-            Nothing
+    , gameOver = gameOver
     }
+        |> Debug.log "moveOutcome"
 
 
 getInitialGameState : Random.Seed -> PostTurnGameState
@@ -340,6 +330,7 @@ getInitialGameState seed0 =
     , lastPlayer = { rack = Array.fromList rack2, score = 0, name = "Player 2" }
     , bag = bag2
     , seed = seed2
+    , gameOver = False
     }
 
 
@@ -395,10 +386,11 @@ getNextGameState wordlist turn state =
                 }
             , bag = newBag
             , seed = seed
+            , gameOver = outcome.gameOver
             }
 
 
-urlModelToModel : UrlState.UrlModel -> Flags -> PlayingModel
+urlModelToModel : UrlState.UrlModel -> Flags -> Model
 urlModelToModel model flags =
     let
         initialState =
@@ -410,49 +402,54 @@ urlModelToModel model flags =
         finalState =
             List.foldr (getNextGameState wordlist) initialState model.turns
     in
-    { selectedCell = Nothing
-    , selectDirection = Right
-    , board = finalState.board
-    , bag = finalState.bag
-    , rack =
-        finalState.nextPlayer.rack
-            |> Array.map (\tile -> RackTile tile Nothing)
-    , opponent =
-        { name = model.lastPlayer.name
-        , score = finalState.lastPlayer.score
+    Playing
+        { selectedCell = Nothing
+        , selectDirection = Right
+        , board = finalState.board
+        , bag = finalState.bag
+        , rack =
+            finalState.nextPlayer.rack
+                |> Array.map (\tile -> RackTile tile Nothing)
+        , opponent =
+            { name = model.lastPlayer.name
+            , score = finalState.lastPlayer.score
+            }
+        , selfName = model.nextPlayer.name
+        , selfScore = finalState.nextPlayer.score
+        , playedTurns = model.turns
+        , initialSeed = model.initialSeed
+        , wordlist = wordlist
+        , shareUrlSupported = flags.shareUrlSupported
+        , clipboardWriteSupported = flags.clipboardWriteSupported
+        , submitDialogState = { clipboardSuccess = False }
+        , gameOver = finalState.gameOver
         }
-    , selfName = model.nextPlayer.name
-    , selfScore = finalState.nextPlayer.score
-    , playedTurns = model.turns
-    , initialSeed = model.initialSeed
-    , wordlist = wordlist
-    , shareUrlSupported = flags.shareUrlSupported
-    , clipboardWriteSupported = flags.clipboardWriteSupported
-    , submitDialogState = { clipboardSuccess = False }
-    }
 
 
-updatePlaying : Msg -> PlayingModel -> ( Model, Cmd msg )
+updatePlaying : Msg -> PlayingModel -> ( PlayingModel, Cmd msg )
 updatePlaying msg model =
     case Debug.log "msg" msg of
         Select point ->
-            ( Playing (withSelection model point)
+            ( withSelection model point
             , Cmd.none
             )
 
         PlaceTile rackIndex ->
-            ( Playing (withPlacedTile model rackIndex), Cmd.none )
+            ( withPlacedTile model rackIndex, Cmd.none )
 
         ShareUrl url ->
-            ( Playing { model | submitDialogState = { clipboardSuccess = True } }
+            ( { model | submitDialogState = { clipboardSuccess = True } }
             , shareUrl url
             )
 
         OpenDialog dialogId ->
-            ( Playing { model | submitDialogState = { clipboardSuccess = False } }, openDialog dialogId )
+            ( { model | submitDialogState = { clipboardSuccess = False } }, openDialog dialogId )
+
+        StartNewGame ->
+            ( model, Nav.load "/" )
 
         _ ->
-            ( Playing model, Cmd.none )
+            ( model, Cmd.none )
 
 
 withSelection : PlayingModel -> Point -> PlayingModel
@@ -547,12 +544,24 @@ view model =
                             , selfScore = pm.selfScore
                             , opponentScore = pm.opponent.score
                             }
+
+                    cellProps =
+                        Array2D.initialize
+                            gridSize
+                            gridSize
+                            (\y x -> getCellProps pm (Point x y))
                 in
                 [ main_ []
                     [ viewScoreHeader pm moveOutcome
-                    , viewGrid pm
-                    , viewRack pm.rack
-                    , viewActionButtons moveOutcome.isMoveValid
+                    , viewSubmitDialog
+                        moveOutcome
+                        (getNextUrlState (modelToUrlModel pm))
+                        pm.shareUrlSupported
+                        pm.clipboardWriteSupported
+                        pm.submitDialogState
+                    , viewGrid cellProps
+                    , viewRack pm.rack pm.gameOver
+                    , viewActionButtons moveOutcome pm.gameOver
                     ]
                 ]
     , title = "Scrobburl"
@@ -563,35 +572,52 @@ type alias SubmitDialogState =
     { clipboardSuccess : Bool }
 
 
+gameOverText : Int -> Int -> String
+gameOverText selfScore opponentScore =
+    let
+        pointsText x =
+            String.fromInt x
+                ++ (if x == 1 then
+                        " point"
+
+                    else
+                        " points"
+                   )
+    in
+    if selfScore > opponentScore then
+        "You won by " ++ pointsText (selfScore - opponentScore) ++ "!"
+
+    else if selfScore < opponentScore then
+        "You lost by " ++ pointsText (opponentScore - selfScore) ++ "!"
+
+    else
+        "You tied with " ++ pointsText selfScore ++ "!"
+
+
 viewSubmitDialog : MoveOutcome -> String -> Bool -> Bool -> SubmitDialogState -> Html Msg
 viewSubmitDialog outcome urlQueryState shareUrlSupported clipboardWriteSupported state =
     Html.node "dialog"
         [ id "submitDialog" ]
         [ h1 []
-            [ text
-                (case outcome.gameOver of
-                    Nothing ->
-                        "Play turn"
+            [ text <|
+                if not outcome.gameOver then
+                    "Play turn"
 
-                    Just Won ->
-                        "You won by " ++ String.fromInt (outcome.selfScore - outcome.opponentScore) ++ " points!"
-
-                    Just Lost ->
-                        "You lost by " ++ String.fromInt (outcome.opponentScore - outcome.selfScore) ++ " points"
-
-                    Just Draw ->
-                        "You tied with " ++ String.fromInt outcome.selfScore ++ " points"
-                )
+                else
+                    gameOverText outcome.selfScore outcome.opponentScore
+                        ++ " Final score: "
+                        ++ String.fromInt outcome.selfScore
+                        ++ " - "
+                        ++ String.fromInt outcome.opponentScore
+                        ++ "."
             ]
         , p []
-            [ text
-                (case outcome.gameOver of
-                    Nothing ->
-                        "Send a link to your opponent so they can play the next turn."
+            [ text <|
+                if outcome.gameOver then
+                    "Send a link to your opponent so they can play the next turn."
 
-                    Just _ ->
-                        "Send a link to your opponent so they can see your final move."
-                )
+                else
+                    "Send a link to your opponent so they can see your final move."
             ]
         , if shareUrlSupported || clipboardWriteSupported then
             div [ class "submit-button-container" ]
@@ -637,7 +663,9 @@ nbsp =
 viewScoreHeader : PlayingModel -> MoveOutcome -> Html Msg
 viewScoreHeader model moveOutcome =
     div [ style "grid-area" "score-header", class "score-header" ]
-        [ div [ style "display" "flex" ]
+        [ Html.Extra.viewIf model.gameOver <|
+            h2 [] [ text <| gameOverText model.selfScore model.opponent.score ]
+        , div [ style "display" "flex", style "margin-bottom" "4px" ]
             [ div [ style "flex" "1" ]
                 [ text ("You (" ++ model.selfName ++ "): ")
                 , text (String.fromInt model.selfScore)
@@ -650,57 +678,60 @@ viewScoreHeader model moveOutcome =
                 , text (nbsp ++ "points")
                 ]
             ]
-        , case moveOutcome.checkerResult of
-            NothingPlaced ->
-                text nbsp
-
-            ValidPlacement { score, invalidWords } ->
-                case invalidWords of
-                    [] ->
-                        div []
-                            [ text ("Move: " ++ String.fromInt score ++ " points. ")
-                            , viewSubmitDialog
-                                moveOutcome
-                                (getNextUrlState (modelToUrlModel model))
-                                model.shareUrlSupported
-                                model.clipboardWriteSupported
-                                model.submitDialogState
-                            ]
-
-                    [ invalidWord ] ->
-                        text (invalidWord ++ " is not a valid word")
-
-                    first :: rest ->
-                        text (String.join ", " rest ++ " and " ++ first ++ " are not valid words")
-
-            NotThroughOrigin ->
-                text "Your first word must pass through the star"
-
-            NotEnoughTiles ->
-                text "You must place at least two tiles"
-
-            NotAnchored ->
-                text "All tiles must be connected"
-
-            NotInLine ->
-                text "All your tiles must be in a single row or column"
+        , div [ style "margin-bottom" "10px" ] [ viewMoveOutcome moveOutcome ]
         ]
 
 
-viewActionButtons : Bool -> Html Msg
-viewActionButtons isMoveValid =
+viewMoveOutcome : MoveOutcome -> Html Msg
+viewMoveOutcome outcome =
+    case outcome.checkerResult of
+        NothingPlaced ->
+            text nbsp
+
+        ValidPlacement { score, invalidWords } ->
+            case invalidWords of
+                [] ->
+                    div [ style "color" "var(--col-success)" ]
+                        [ text ("Your move: " ++ String.fromInt score ++ " points. ") ]
+
+                [ invalidWord ] ->
+                    text (invalidWord ++ " is not a valid word")
+
+                first :: rest ->
+                    text (String.join ", " rest ++ " and " ++ first ++ " are not valid words")
+
+        NotThroughOrigin ->
+            text "Your first word must pass through the star"
+
+        NotEnoughTiles ->
+            text "You must place at least two tiles"
+
+        NotAnchored ->
+            text "All tiles must be connected"
+
+        NotInLine ->
+            text "All your tiles must be in a single row or column"
+
+
+viewActionButtons : MoveOutcome -> Bool -> Html Msg
+viewActionButtons outcome gameOver =
     div [ class "bottom-action-buttons" ]
-        [ button
-            [ onClick (OpenDialog "submitDialog"), disabled (not isMoveValid) ]
-            [ text "Play turn" ]
+        [ Html.Extra.viewIf (not gameOver) <|
+            button
+                [ onClick (OpenDialog "submitDialog"), disabled (not outcome.isMoveValid) ]
+                [ text "Play turn" ]
+        , Html.Extra.viewIf gameOver <|
+            button
+                [ onClick StartNewGame ]
+                [ text "Start new game" ]
         ]
 
 
-viewRack : RackState -> Html Msg
-viewRack rack =
+viewRack : RackState -> Bool -> Html Msg
+viewRack rack disable =
     let
         rackViews =
-            rack |> Array.indexedMap viewRackTile
+            rack |> Array.indexedMap (viewRackTile disable)
 
         ( first, rest ) =
             Array.Extra.splitAt (Array.length rack - 3) rackViews
@@ -710,36 +741,34 @@ viewRack rack =
         (Array.toList first ++ [ div [] (Array.toList rest) ])
 
 
-viewRackTile : Int -> RackTile -> Html Msg
-viewRackTile index tile =
+viewRackTile : Bool -> Int -> RackTile -> Html Msg
+viewRackTile disable index tile =
     button
         [ class "rack-tile"
         , onClick (PlaceTile index)
-        , disabled (tile.placement /= Nothing)
+        , disabled (disable || tile.placement /= Nothing)
         ]
         [ viewTile tile.tile True ]
 
 
-viewGrid : PlayingModel -> Html Msg
-viewGrid model =
+viewGrid : Array2D CellProps -> Html Msg
+viewGrid cellProps =
     Html.node "scroll-repeat"
         [ class "scroll-repeat-view" ]
         -- We use a zero-size div to force the xy coords for panzoom to be the top-left of the grid.
         [ div [ style "width" "0", style "height" "0" ]
             [ div
                 [ id "super-grid" ]
-                (List.repeat 9 (viewPartialGrid model))
+                (List.repeat 9 (viewPartialGrid cellProps))
             ]
         ]
 
 
-viewPartialGrid : PlayingModel -> Html Msg
-viewPartialGrid model =
+viewPartialGrid : Array2D CellProps -> Html Msg
+viewPartialGrid cellProps =
     div [ class "grid" ]
-        (Array2D.initialize
-            gridSize
-            gridSize
-            (\y x -> viewCell (Point x y) (getCellProps model (Point x y)))
+        (cellProps
+            |> Array2D.indexedMap (\y x p -> viewCell (Point x y) p)
             |> Array2D.Extra.flattenToList
         )
 

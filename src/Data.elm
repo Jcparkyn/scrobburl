@@ -1,4 +1,4 @@
-module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, Opponent, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, playedTurnToRackState, swapDirection)
+module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, playedTurnToRackState, swapDirection)
 
 import Array exposing (Array)
 import Array.Extra
@@ -60,12 +60,6 @@ swapDirection dir =
 
 type alias Tiles =
     Array2D (Maybe Tile)
-
-
-type alias Opponent =
-    { name : String
-    , score : Int
-    }
 
 
 getAllCellContents : { board : Tiles, rack : RackState } -> Array2D CellContents
