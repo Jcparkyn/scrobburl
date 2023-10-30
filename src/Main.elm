@@ -818,12 +818,16 @@ viewCell point state =
     div
         [ onClick (Select point)
         , class "cell"
-        , classList
-            [ ( "cell-2w", state.multiplier.word == 2 )
-            , ( "cell-3w", state.multiplier.word == 3 )
-            , ( "cell-2l", state.multiplier.letter == 2 )
-            , ( "cell-3l", state.multiplier.letter == 3 )
-            ]
+        , classList <|
+            if state.contents == Empty then
+                [ ( "cell-2w", state.multiplier.word == 2 )
+                , ( "cell-3w", state.multiplier.word == 3 )
+                , ( "cell-2l", state.multiplier.letter == 2 )
+                , ( "cell-3l", state.multiplier.letter == 3 )
+                ]
+
+            else
+                []
         ]
         [ case ( state.contents, state.state ) of
             ( Empty, Inactive ) ->

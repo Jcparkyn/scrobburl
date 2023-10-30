@@ -4,13 +4,13 @@
   --col-bg: #1d1d1a;
   --col-text: #feffff;
   --col-primary: #fec53c;
-  --col-secondary: #5183e7;
+  --col-secondary: #eaeaea;
   --col-cell: #2d2d2d;
   --col-success: #84ff7a;
   --grid-size: 14;
   --grid-gap: 4px;
   --default-board-size: calc((var(--cell-size) + var(--grid-gap)) * (var(--grid-size) + 1));
-  --tile-border-radius: 16px;
+  --tile-border-radius: 10px;
   color: white;
   background-color: var(--col-bg);
 }
@@ -125,16 +125,16 @@ dialog > form {
 }
 
 .cell-2w {
-  background-color: rgb(248, 187, 107);
+  background-color: rgb(187, 145, 94);
 }
 .cell-3w {
-  background-color: rgb(255, 63, 63);
+  background-color: rgb(206, 76, 76);
 }
 .cell-2l {
-  background-color: rgb(107, 172, 224);
+  background-color: rgb(98, 142, 178);
 }
 .cell-3l {
-  background-color: rgb(25, 105, 255);
+  background-color: rgb(20, 74, 174);
 }
 
 
@@ -148,7 +148,7 @@ dialog > form {
   text-align: center;
   font-size: 35px;
   line-height: var(--cell-size);
-  background-color: var(--col-primary);
+  background-color: var(--col-secondary);
   color: var(--col-bg);
   border-radius: var(--tile-border-radius);
   font-family: Georgia, 'Times New Roman', Times, serif;
@@ -159,7 +159,7 @@ dialog > form {
 
 .preview-tile {
   color: black;
-  background-color: var(--col-secondary);
+  background-color: var(--col-primary);
 }
 
 .tile-value {
