@@ -235,7 +235,6 @@ type Msg
     | PlaceTile Int
     | OpenDialog String
     | ShareUrl { queryState : String, useClipboard : Bool }
-    | StartNewGame
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
 
@@ -438,15 +437,12 @@ updatePlaying msg model =
             ( withPlacedTile model rackIndex, Cmd.none )
 
         ShareUrl url ->
-            ( { model | submitDialogState = { clipboardSuccess = True } }
+            ( { model | submitDialogState = { clipboardSuccess = url.useClipboard } }
             , shareUrl url
             )
 
         OpenDialog dialogId ->
             ( { model | submitDialogState = { clipboardSuccess = False } }, openDialog dialogId )
-
-        StartNewGame ->
-            ( model, Nav.load "" )
 
         LinkClicked urlRequest ->
             case urlRequest of
@@ -622,7 +618,7 @@ viewSubmitDialog outcome urlQueryState shareUrlSupported clipboardWriteSupported
             ]
         , p []
             [ text <|
-                if outcome.gameOver then
+                if not outcome.gameOver then
                     "Send a link to your opponent so they can play the next turn."
 
                 else
