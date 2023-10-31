@@ -136,6 +136,16 @@ dialog > form {
 .cell-3l {
   background-color: rgb(20, 74, 174);
 }
+.cell-origin::before {
+  content: "✦";
+  font-size: var(--cell-size);
+  line-height: 49px;
+  color: #000000db;
+  text-align: center;
+  position: absolute;
+  width: var(--cell-size);
+  box-sizing: border-box;
+}
 
 
 .cell-select-highlight {

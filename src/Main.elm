@@ -824,6 +824,7 @@ viewCell point state =
                 , ( "cell-3w", state.multiplier.word == 3 )
                 , ( "cell-2l", state.multiplier.letter == 2 )
                 , ( "cell-3l", state.multiplier.letter == 3 )
+                , ( "cell-origin", point == Point (gridSize // 2) (gridSize // 2) )
                 ]
 
             else
