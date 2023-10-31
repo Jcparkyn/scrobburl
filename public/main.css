@@ -208,11 +208,20 @@ dialog > form {
   font-size: 1.5em;
 }
 
+.move-outcome-container {
+  margin-bottom: 6px;
+  line-height: 1em;
+  min-height: 2em;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
 .bottom-action-buttons {
   display: flex;
   flex-flow: row wrap;
-  justify-content: center;
-  margin: 12px 12px 12px 6px;
+  justify-content: space-between;
+  margin: 12px 0;
 }
 
 .bottom-action-buttons > button {

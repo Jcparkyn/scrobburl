@@ -1,23 +1,24 @@
 port module Main exposing (Flags, Model, Msg, PlayingModel, PostTurnGameState, PostTurnPlayerState, SubmitDialogState, main)
 
 import Array exposing (Array)
-import Array.Extra
 import Array2D exposing (Array2D)
 import Array2D.Extra
 import Browser
 import Browser.Navigation as Nav
-import Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, scoreMove)
-import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, playedTurnToRackState, swapDirection)
+import Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, maxRackSize, scoreMove)
+import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
 import Html exposing (Html, a, br, button, div, h1, h2, main_, p, text)
-import Html.Attributes exposing (class, classList, disabled, href, id, style, target)
+import Html.Attributes exposing (class, classList, disabled, href, id, style, target, title)
 import Html.Events exposing (onClick)
 import Html.Extra
+import Icons
 import List.Extra exposing (removeIfIndex)
 import Maybe
 import Point exposing (Point)
 import Random
 import Random.List
 import Set exposing (Set)
+import Tuple
 import Url
 import Url.Builder
 import UrlState exposing (decodeUrl, getNextUrlState)
@@ -59,6 +60,8 @@ type alias PlayingModel =
     , board : Tiles
     , bag : List Tile
     , rack : RackState
+
+    -- , rackShuffle : List Int
     , opponent :
         { name : String
         , score : Int
@@ -207,7 +210,7 @@ init flags url _ =
                 , bag = initialState.bag
                 , rack =
                     initialState.nextPlayer.rack
-                        |> Array.map (\c -> RackTile c Nothing)
+                        |> Array.map (\c -> RackTile 0 c Nothing)
                 , opponent =
                     { name = initialState.lastPlayer.name
                     , score = 0
@@ -233,13 +236,16 @@ init flags url _ =
 type Msg
     = Select Point
     | PlaceTile Int
+    | ResetRack
+    | ShuffleRack
+    | NewRackOrder (List Int)
     | OpenDialog String
     | ShareUrl { queryState : String, useClipboard : Bool }
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case model of
         Playing pm ->
@@ -316,7 +322,7 @@ getInitialGameState : Random.Seed -> PostTurnGameState
 getInitialGameState seed0 =
     let
         rackGenerator =
-            drawRandomTiles 8
+            drawRandomTiles maxRackSize
 
         ( ( rack1, bag1 ), seed1 ) =
             Random.step (rackGenerator initialBag) seed0
@@ -408,7 +414,7 @@ urlModelToModel model flags =
         , bag = finalState.bag
         , rack =
             finalState.nextPlayer.rack
-                |> Array.map (\tile -> RackTile tile Nothing)
+                |> Array.map (\tile -> RackTile 0 tile Nothing)
         , opponent =
             { name = model.lastPlayer.name
             , score = finalState.lastPlayer.score
@@ -425,7 +431,7 @@ urlModelToModel model flags =
         }
 
 
-updatePlaying : Msg -> PlayingModel -> ( PlayingModel, Cmd msg )
+updatePlaying : Msg -> PlayingModel -> ( PlayingModel, Cmd Msg )
 updatePlaying msg model =
     case Debug.log "msg" msg of
         Select point ->
@@ -435,6 +441,15 @@ updatePlaying msg model =
 
         PlaceTile rackIndex ->
             ( withPlacedTile model rackIndex, Cmd.none )
+
+        ResetRack ->
+            ( { model | rack = resetRackState model.rack }, Cmd.none )
+
+        ShuffleRack ->
+            ( model, Random.generate NewRackOrder shuffleRackGenerator )
+
+        NewRackOrder indices ->
+            ( { model | rack = shuffleRack model.rack (Array.fromList indices) }, Cmd.none )
 
         ShareUrl url ->
             ( { model | submitDialogState = { clipboardSuccess = url.useClipboard } }
@@ -566,7 +581,7 @@ view model =
                         pm.submitDialogState
                     , viewGrid cellProps
                     , viewRack pm.rack pm.gameOver
-                    , viewActionButtons moveOutcome pm.gameOver
+                    , viewActionButtons moveOutcome pm
                     ]
                 ]
     , title = "Scrobburl"
@@ -686,11 +701,13 @@ viewScoreHeader model moveOutcome =
                 , text (nbsp ++ "points")
                 ]
             ]
-        , div [ style "margin-bottom" "10px" ] [ viewMoveOutcome moveOutcome ]
+        , div [ class "move-outcome-container" ]
+            [ div [] [ viewMoveOutcome moveOutcome ]
+            ]
         ]
 
 
-viewMoveOutcome : MoveOutcome -> Html Msg
+viewMoveOutcome : MoveOutcome -> Html msg
 viewMoveOutcome outcome =
     case outcome.checkerResult of
         NothingPlaced ->
@@ -721,28 +738,44 @@ viewMoveOutcome outcome =
             text "All your tiles must be in a single row or column"
 
 
-viewActionButtons : MoveOutcome -> Bool -> Html Msg
-viewActionButtons outcome gameOver =
-    div [ class "bottom-action-buttons" ]
-        [ Html.Extra.viewIf (not gameOver) <|
-            button
-                [ onClick (OpenDialog "submitDialog"), disabled (not outcome.isMoveValid) ]
+shuffleRackGenerator : Random.Generator (List Int)
+shuffleRackGenerator =
+    Random.list maxRackSize (Random.int 0 1000)
+
+
+viewActionButtons : MoveOutcome -> PlayingModel -> Html Msg
+viewActionButtons outcome pm =
+    Html.Extra.viewIf (not pm.gameOver) <|
+        div [ class "bottom-action-buttons" ]
+            [ button [ onClick ResetRack, title "Reset rack", disabled (isRackReset pm.rack) ] [ Icons.cornerLeftDown ]
+            , button
+                [ onClick (OpenDialog "submitDialog")
+                , disabled (not outcome.isMoveValid)
+                , title "Play turn"
+                ]
                 [ text "Play turn" ]
-        ]
+            , button [ onClick ShuffleRack, title "Shuffle rack" ] [ Icons.shuffle ]
+            ]
 
 
 viewRack : RackState -> Bool -> Html Msg
 viewRack rack disable =
     let
+        sortedRack =
+            rack
+                |> Array.toIndexedList
+                -- Ideally this would be a stable sort, but it doesn't matter too much
+                |> List.sortBy (\( _, t ) -> t.sortIndex)
+
         rackViews =
-            rack |> Array.indexedMap (viewRackTile disable)
+            List.map (\( i, t ) -> viewRackTile disable i t) sortedRack
 
         ( first, rest ) =
-            Array.Extra.splitAt (Array.length rack - 3) rackViews
+            List.Extra.splitAt (Array.length rack - 3) rackViews
     in
     div [ class "rack" ]
         -- The last 3 tiles go in a separate div, so that they wrap together
-        (Array.toList first ++ [ div [] (Array.toList rest) ])
+        (first ++ [ div [] rest ])
 
 
 viewRackTile : Bool -> Int -> RackTile -> Html Msg

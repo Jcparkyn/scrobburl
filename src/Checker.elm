@@ -1,4 +1,4 @@
-module Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, multipliers, scoreMove)
+module Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, maxRackSize, multipliers, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
@@ -33,6 +33,11 @@ type CheckerResult
 gridSize : Int
 gridSize =
     14
+
+
+maxRackSize : Int
+maxRackSize =
+    8
 
 
 multipliers : Array2D Multiplier

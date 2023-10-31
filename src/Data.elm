@@ -1,4 +1,4 @@
-module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, playedTurnToRackState, swapDirection)
+module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
 
 import Array exposing (Array)
 import Array.Extra
@@ -11,7 +11,8 @@ type alias Tile =
 
 
 type alias RackTile =
-    { tile : Tile
+    { sortIndex : Int
+    , tile : Tile
     , placement : Maybe Point
     }
 
@@ -101,4 +102,19 @@ playedTurnToRackState turn rack =
                     placements
                         |> List.foldl updatePositions initialPositions
             in
-            Array.Extra.map2 RackTile rack finalPositions
+            Array.Extra.map2 (RackTile 0) rack finalPositions
+
+
+resetRackState : RackState -> RackState
+resetRackState r =
+    r |> Array.map (\t -> { t | placement = Nothing, sortIndex = 0 })
+
+
+shuffleRack : RackState -> Array Int -> RackState
+shuffleRack rack sortIndexes =
+    Array.Extra.map2 (\sortIndex tile -> { tile | sortIndex = sortIndex }) sortIndexes rack
+
+
+isRackReset : RackState -> Bool
+isRackReset rack =
+    rack |> Array.Extra.all (\t -> t.placement == Nothing && t.sortIndex == 0)
