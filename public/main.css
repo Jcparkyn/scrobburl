@@ -216,7 +216,8 @@ dialog > form {
 }
 
 .bottom-action-buttons > button {
-  font-size: 1.7em;
+  font-size: 2em;
+  font-family: Consolas, monospace;
   padding: 8px 12px;
   /* border-radius: 24px; */
   /* border: 2px solid #fff; */
