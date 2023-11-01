@@ -40,6 +40,7 @@ config =
         |> Rule.ignoreErrorsForDirectories [ "tests/" ]
     , NoExposingEverything.rule
     , NoImportingEverything.rule []
+        |> Rule.ignoreErrorsForFiles ["src/Icons.elm"]
     , NoMissingTypeAnnotation.rule
     , NoMissingTypeExpose.rule
     , NoSimpleLetBody.rule
