@@ -871,11 +871,12 @@ viewCell point state =
                 div [ class "cell-select-highlight" ] []
 
             ( Empty, SelectionHighlight highlightStrength ) ->
-                div
-                    [ class "cell-select-highlight"
-                    , style "opacity" (String.fromFloat highlightStrength)
-                    ]
-                    []
+                Html.Extra.viewIf (highlightStrength > 0) <|
+                    div
+                        [ class "cell-select-highlight"
+                        , style "opacity" (String.fromFloat highlightStrength)
+                        ]
+                        []
 
             ( Placed tile, _ ) ->
                 viewTile tile False

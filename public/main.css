@@ -148,6 +148,7 @@ dialog > form {
 }
 
 
+
 .cell-select-highlight {
   background-color: #e5dcc2;
   height: 100%;
@@ -167,9 +168,21 @@ dialog > form {
   box-sizing: border-box;
 }
 
+@keyframes animate-border-radius {
+  from {
+    border-radius: 0;
+  }
+  to {
+    border-radius: var(--tile-border-radius);
+  }
+}
+
 .preview-tile {
   color: black;
   background-color: var(--col-primary);
+  animation-name: animate-border-radius;
+  animation-duration: 0.2s;
+  animation-fill-mode: forwards;
 }
 
 .tile-value {
