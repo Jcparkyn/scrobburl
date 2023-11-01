@@ -12,16 +12,20 @@
 <body>
   <div id="myapp">Fetching dictionary...</div>
   <script>
+    const cellSizePx = 55;
+    const gridSize = 14;
+    const gapPx = 4;
     customElements.define('scroll-repeat', class extends HTMLElement {
       constructor() { super(); }
       connectedCallback() {
         let dragStart = null;
         const elem = this.firstChild;
-        const scrollResetDistance = (55 + 4) * 14;
+        const partialGridSizePx = (cellSizePx + gapPx) * gridSize; // Width and height of a partial grid
+
         const mod = (a, b) => ((a % b) + b) % b;
-        const normalize = (n) => mod(n, scrollResetDistance) - scrollResetDistance
+        const normalize = (n) => mod(n, partialGridSizePx) - partialGridSizePx
         const panzoom = Panzoom(elem, {
-          minScale: 0.6,
+          minScale: 0.2,
           maxScale: 2,
           canvas: false,
           step: 0.3,
@@ -30,6 +34,26 @@
             panzoom.setStyle('transform', `scale(${scale}) translate(${normalize(x)}px, ${normalize(y)}px)`);
           },
         });
+
+        const onViewportResize = () => {
+          const grid = document.querySelector(".grid");
+          const maxDim = Math.max(this.offsetWidth, this.offsetHeight);
+          const offsetWidth = this.offsetWidth;
+          const visualGridSizePx = cellSizePx * (gridSize + 1) + gapPx * gridSize;
+          // Zoom level that would fit one partial grid perfectly in the scroll-repeat
+          const zoomToFit = maxDim / partialGridSizePx;
+          // Zoom level that would fit the "visual" grid (with duplicated edges) perfectly in the scroll-repeat
+          const zoomToFitVisual = offsetWidth / visualGridSizePx;
+
+          panzoom.setOptions({
+            minScale: zoomToFit * 0.6, // Must not be smaller than zoomToFit * 0.5
+            maxScale: zoomToFit * 2,
+          })
+          panzoom.zoom(zoomToFitVisual);
+          panzoom.pan(0, 0);
+        };
+        window.addEventListener("resize", onViewportResize);
+        setTimeout(onViewportResize);
         elem.addEventListener('pointerdown', (event) => {
           dragStart = { x: event.clientX, y: event.clientY };
           panzoom.handleDown(event);
