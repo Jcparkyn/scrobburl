@@ -3,8 +3,8 @@ module Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSi
 import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Array2D.Extra
-import Data exposing (CellContents(..), Multiplier, RackState, Tiles, getAllCellContents)
-import Dict
+import Data exposing (CellContents(..), Multiplier, RackState, Tile, Tiles, getAllCellContents)
+import Dict exposing (Dict)
 import List.Extra
 import Point exposing (Point)
 import Set exposing (Set)
@@ -75,6 +75,16 @@ multipliers =
                 |> Dict.get ( normalize x, normalize y )
                 |> Maybe.withDefault (Multiplier 1 1)
         )
+
+
+wordLengthBonuses : Dict Int Int
+wordLengthBonuses =
+    Dict.fromList
+        [ ( 5, 5 )
+        , ( 6, 15 )
+        , ( 7, 30 )
+        , ( 8, 50 )
+        ]
 
 
 scoreMove : CheckerModel -> CheckerResult
@@ -170,12 +180,13 @@ getAllLines grid =
     rows ++ columns
 
 
+type alias ScoringCellContents =
+    { tile : Tile, isPreview : Bool, multiplier : Multiplier }
+
+
 scoreLine : Set String -> Array ( Multiplier, CellContents ) -> List ScoreWordResult
 scoreLine wordlist line =
     let
-        tilesToString =
-            List.map .tile >> String.fromList
-
         wordMultiplier tiles =
             tiles |> List.filter .isPreview |> List.map (.multiplier >> .word) |> List.product
 
@@ -189,11 +200,22 @@ scoreLine wordlist line =
         baseScore tiles =
             tiles |> List.map (\t -> getLetterValue t.tile * letterMultiplier t) |> List.sum
 
+        scoreWord : List ScoringCellContents -> { word : String, score : Maybe Int }
         scoreWord tiles =
-            { word = tilesToString tiles
+            let
+                word =
+                    tiles |> List.map .tile |> String.fromList
+            in
+            { word = word
             , score =
-                if Set.member (tilesToString tiles) wordlist then
-                    Just (baseScore tiles * wordMultiplier tiles)
+                if Set.member word wordlist then
+                    let
+                        wordLengthBonus =
+                            wordLengthBonuses
+                                |> Dict.get (tiles |> List.Extra.count .isPreview)
+                                |> Maybe.withDefault 0
+                    in
+                    Just (baseScore tiles * wordMultiplier tiles + wordLengthBonus)
 
                 else
                     Nothing
@@ -202,6 +224,7 @@ scoreLine wordlist line =
         rotate amount list =
             List.drop amount list ++ List.take amount list
 
+        cells : List (Maybe ScoringCellContents)
         cells =
             line
                 |> Array.toList
