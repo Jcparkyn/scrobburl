@@ -18,7 +18,7 @@ type alias CheckerModel =
 
 
 type alias ScoreWordResult =
-    { word : String, score : Maybe Int }
+    { word : String, score : Int, legal : Bool }
 
 
 type CheckerResult
@@ -139,10 +139,10 @@ scoreMove model =
                         |> List.concatMap (scoreLine model.wordlist)
             in
             ValidPlacement
-                { score = wordScores |> List.filterMap .score |> List.sum
+                { score = wordScores |> List.map .score |> List.sum
                 , invalidWords =
                     wordScores
-                        |> List.filter (\s -> s.score == Nothing)
+                        |> List.filter (\s -> not s.legal)
                         |> List.map .word
                 }
 
@@ -187,40 +187,6 @@ type alias ScoringCellContents =
 scoreLine : Set String -> Array ( Multiplier, CellContents ) -> List ScoreWordResult
 scoreLine wordlist line =
     let
-        wordMultiplier tiles =
-            tiles |> List.filter .isPreview |> List.map (.multiplier >> .word) |> List.product
-
-        letterMultiplier tile =
-            if tile.isPreview then
-                tile.multiplier.letter
-
-            else
-                1
-
-        baseScore tiles =
-            tiles |> List.map (\t -> getLetterValue t.tile * letterMultiplier t) |> List.sum
-
-        scoreWord : List ScoringCellContents -> { word : String, score : Maybe Int }
-        scoreWord tiles =
-            let
-                word =
-                    tiles |> List.map .tile |> String.fromList
-            in
-            { word = word
-            , score =
-                if Set.member word wordlist then
-                    let
-                        wordLengthBonus =
-                            wordLengthBonuses
-                                |> Dict.get (tiles |> List.Extra.count .isPreview)
-                                |> Maybe.withDefault 0
-                    in
-                    Just (baseScore tiles * wordMultiplier tiles + wordLengthBonus)
-
-                else
-                    Nothing
-            }
-
         rotate amount list =
             List.drop amount list ++ List.take amount list
 
@@ -251,7 +217,37 @@ scoreLine wordlist line =
                 |> List.filter (List.any .isPreview)
                 |> List.filter (\word -> List.length word > 1)
     in
-    List.map scoreWord newWords
+    List.map (scoreWord wordlist) newWords
+
+
+scoreWord : Set String -> List ScoringCellContents -> ScoreWordResult
+scoreWord wordlist tiles =
+    let
+        letterMultiplier tile =
+            if tile.isPreview then
+                tile.multiplier.letter
+
+            else
+                1
+
+        baseScore =
+            tiles |> List.map (\t -> getLetterValue t.tile * letterMultiplier t) |> List.sum
+
+        wordMultiplier =
+            tiles |> List.filter .isPreview |> List.map (.multiplier >> .word) |> List.product
+
+        word =
+            tiles |> List.map .tile |> String.fromList
+
+        wordLengthBonus =
+            wordLengthBonuses
+                |> Dict.get (tiles |> List.Extra.count .isPreview)
+                |> Maybe.withDefault 0
+    in
+    { word = word
+    , score = baseScore * wordMultiplier + wordLengthBonus
+    , legal = Set.member word wordlist
+    }
 
 
 splitByNothings : List (Maybe a) -> List (List a)

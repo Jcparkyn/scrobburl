@@ -720,10 +720,10 @@ viewMoveOutcome outcome =
                         [ text ("Your move: " ++ String.fromInt score ++ " points. ") ]
 
                 [ invalidWord ] ->
-                    text (invalidWord ++ " is not a valid word")
+                    text (invalidWord ++ " is not a valid word (" ++ String.fromInt score ++ " points)")
 
                 first :: rest ->
-                    text (String.join ", " rest ++ " and " ++ first ++ " are not valid words")
+                    text (String.join ", " rest ++ " and " ++ first ++ " are not valid words (" ++ String.fromInt score ++ " points)")
 
         NotThroughOrigin ->
             text "Your first word must pass through the star"
