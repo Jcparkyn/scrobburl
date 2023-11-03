@@ -12,6 +12,7 @@ import Point exposing (Point)
 import Url
 import Url.Parser
 import Url.Parser.Query
+import UrlBase64
 
 
 type alias UrlModel =
@@ -33,6 +34,7 @@ compressToBase64 str =
         |> BE.encode
         |> deflate
         |> Base64.fromBytes
+        |> Maybe.map UrlBase64.toUrl
         |> Maybe.withDefault ""
 
 
@@ -43,6 +45,7 @@ decompressFromBase64 str =
             BD.decode (BD.string (Bytes.width buffer)) buffer
     in
     str
+        |> UrlBase64.fromUrl
         |> Base64.toBytes
         |> Result.fromMaybe Base64Error
         |> Result.andThen (inflate >> Result.fromMaybe InflateError)
