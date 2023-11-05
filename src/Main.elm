@@ -266,12 +266,6 @@ modelToUrlModel model =
                 |> List.filterMap (\x -> x)
     in
     { turns = PlayedTurn nextTurn :: model.playedTurns
-    , lastPlayer =
-        { name = model.selfName
-        }
-    , nextPlayer =
-        { name = model.opponent.name
-        }
     , initialSeed = model.initialSeed
     }
 
@@ -406,6 +400,12 @@ urlModelToModel model flags =
 
         finalState =
             List.foldr (getNextGameState wordlist) initialState model.turns
+
+        playerName n =
+            "Player " ++ String.fromInt (n + 1)
+
+        turnCount =
+            List.length model.turns
     in
     Playing
         { selectedCell = Nothing
@@ -416,10 +416,10 @@ urlModelToModel model flags =
             finalState.nextPlayer.rack
                 |> Array.map (\tile -> RackTile 0 tile Nothing)
         , opponent =
-            { name = model.lastPlayer.name
+            { name = playerName (turnCount - 1 |> modBy 2)
             , score = finalState.lastPlayer.score
             }
-        , selfName = model.nextPlayer.name
+        , selfName = playerName (turnCount |> modBy 2)
         , selfScore = finalState.nextPlayer.score
         , playedTurns = model.turns
         , initialSeed = model.initialSeed

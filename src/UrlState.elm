@@ -1,4 +1,4 @@
-module UrlState exposing (DecodeUrlError, UrlModel, UrlPlayer, decodeUrl, getNextUrlState)
+module UrlState exposing (DecodeUrlError, UrlModel, decodeUrl, getNextUrlState)
 
 import Base64
 import Bytes
@@ -18,14 +18,8 @@ import UrlBase64
 
 type alias UrlModel =
     { turns : List PlayedTurn
-    , nextPlayer : UrlPlayer
-    , lastPlayer : UrlPlayer
     , initialSeed : Int
     }
-
-
-type alias UrlPlayer =
-    { name : String }
 
 
 compressToBase64 : String -> String
@@ -66,23 +60,8 @@ getNextUrlBody : UrlModel -> E.Value
 getNextUrlBody model =
     E.object
         [ ( "turns", E.list encodeTurn model.turns )
-        , ( "np", encodePlayer model.nextPlayer )
-        , ( "lp", encodePlayer model.lastPlayer )
         , ( "s0", E.int model.initialSeed )
         ]
-
-
-encodePlayer : UrlPlayer -> E.Value
-encodePlayer player =
-    E.object
-        [ ( "n", E.string player.name )
-        ]
-
-
-decodePlayer : Decoder UrlPlayer
-decodePlayer =
-    D.map UrlPlayer
-        (D.field "n" D.string)
 
 
 encodeTurn : PlayedTurn -> E.Value
@@ -125,10 +104,8 @@ decodeTurn =
 
 decodeModel : Decoder UrlModel
 decodeModel =
-    D.map4 UrlModel
+    D.map2 UrlModel
         (D.field "turns" (D.list decodeTurn))
-        (D.field "np" decodePlayer)
-        (D.field "lp" decodePlayer)
         (D.field "s0" D.int)
 
 
