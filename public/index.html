@@ -73,8 +73,20 @@
         }, { capture: true});
       }
     });
+
+    const fetchWordlist = async () => {
+      if ("DecompressionStream" in window) {
+        const ds = new DecompressionStream('gzip');
+        const wordlistBlob = await fetch('sowpods.txt.gz').then(res => res.blob());
+        const decompressedStream = wordlistBlob.stream().pipeThrough(ds);
+        return await new Response(decompressedStream).text();
+      }
+      return await fetch('sowpods.txt').then(res => res.text());
+    }
+
     const start = async () => {
-      const wordlist = await fetch('dictionary.txt').then(res => res.text());
+      const wordlist = await fetchWordlist();
+
       // This seed isn't perfect, but it doesn't matter too much
       const initialSeed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
       const shareUrlSupported = !!(navigator.canShare && navigator.canShare({ url: window.location.href }));
