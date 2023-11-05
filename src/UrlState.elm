@@ -8,6 +8,7 @@ import Data exposing (PlayedTurn(..))
 import Flate exposing (deflate, inflate)
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
+import List.Extra
 import Point exposing (Point)
 import Url
 import Url.Parser
@@ -56,7 +57,7 @@ getNextUrlState : UrlModel -> String
 getNextUrlState model =
     let
         bodyJson =
-            E.encode 0 (getNextUrlBody model)
+            E.encode 0 (getNextUrlBody model) |> Debug.log "bodyJson"
     in
     compressToBase64 bodyJson
 
@@ -65,23 +66,23 @@ getNextUrlBody : UrlModel -> E.Value
 getNextUrlBody model =
     E.object
         [ ( "turns", E.list encodeTurn model.turns )
-        , ( "nextPlayer", encodePlayer model.nextPlayer )
-        , ( "lastPlayer", encodePlayer model.lastPlayer )
-        , ( "initialSeed", E.int model.initialSeed )
+        , ( "np", encodePlayer model.nextPlayer )
+        , ( "lp", encodePlayer model.lastPlayer )
+        , ( "s0", E.int model.initialSeed )
         ]
 
 
 encodePlayer : UrlPlayer -> E.Value
 encodePlayer player =
     E.object
-        [ ( "name", E.string player.name )
+        [ ( "n", E.string player.name )
         ]
 
 
 decodePlayer : Decoder UrlPlayer
 decodePlayer =
     D.map UrlPlayer
-        (D.field "name" D.string)
+        (D.field "n" D.string)
 
 
 encodeTurn : PlayedTurn -> E.Value
@@ -89,10 +90,11 @@ encodeTurn turn =
     case turn of
         PlayedTurn tiles ->
             tiles
-                |> E.list
+                |> List.concatMap
                     (\{ rackIndex, position } ->
-                        E.list E.int [ rackIndex, position.x, position.y ]
+                        [ rackIndex, position.x, position.y ]
                     )
+                |> E.list E.int
 
 
 decodeTurn : Decoder PlayedTurn
@@ -109,18 +111,25 @@ decodeTurn =
                     { rackIndex = 0
                     , position = Point 0 0
                     }
+
+        decodePlacements : List Int -> PlayedTurn
+        decodePlacements p =
+            p
+                |> List.Extra.groupsOf 3
+                |> List.map decodePlacement
+                |> PlayedTurn
     in
-    D.list (D.list D.int)
-        |> D.map (\z -> PlayedTurn (List.map decodePlacement z))
+    D.list D.int
+        |> D.map decodePlacements
 
 
 decodeModel : Decoder UrlModel
 decodeModel =
     D.map4 UrlModel
         (D.field "turns" (D.list decodeTurn))
-        (D.field "nextPlayer" decodePlayer)
-        (D.field "lastPlayer" decodePlayer)
-        (D.field "initialSeed" D.int)
+        (D.field "np" decodePlayer)
+        (D.field "lp" decodePlayer)
+        (D.field "s0" D.int)
 
 
 type DecodeUrlError
