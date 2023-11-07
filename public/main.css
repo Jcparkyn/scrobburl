@@ -247,6 +247,10 @@ dialog > form {
   /* color: var(--col-primary) */
 }
 
+.text-col-primary {
+  color: var(--col-primary);
+}
+
 /* .bottom-action-buttons > button:disabled {
   color: #fff;
 } */

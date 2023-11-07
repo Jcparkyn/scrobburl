@@ -1,13 +1,13 @@
-port module Main exposing (Flags, Model, Msg, PlayingModel, PostTurnGameState, PostTurnPlayerState, SubmitDialogState, main)
+port module Main exposing (Flags, Model, MoveOutcome, Msg, PlayingModel, PostTurnGameState, PostTurnPlayerState, SubmitDialogState, main)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
 import Array2D.Extra
 import Browser
 import Browser.Navigation as Nav
-import Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, maxRackSize, scoreMove)
+import Checker exposing (CheckerModel, CheckerResult(..), ScoringCellContents, getLetterValue, gridSize, maxRackSize, scoreMove)
 import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
-import Html exposing (Html, a, br, button, div, h1, h2, main_, p, text)
+import Html exposing (Html, a, br, button, div, h1, h2, main_, p, span, text)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target, title)
 import Html.Events exposing (onClick)
 import Html.Extra
@@ -60,8 +60,6 @@ type alias PlayingModel =
     , board : Tiles
     , bag : List Tile
     , rack : RackState
-
-    -- , rackShuffle : List Int
     , opponent :
         { name : String
         , score : Int
@@ -75,6 +73,7 @@ type alias PlayingModel =
     , clipboardWriteSupported : Bool
     , submitDialogState : SubmitDialogState
     , gameOver : Bool
+    , history : List { moveOutcome : MoveOutcome }
     }
 
 
@@ -92,6 +91,7 @@ type alias PostTurnGameState =
     , bag : List Tile
     , seed : Random.Seed
     , gameOver : Bool
+    , history : List { moveOutcome : MoveOutcome }
     }
 
 
@@ -224,6 +224,7 @@ init flags url _ =
                 , clipboardWriteSupported = flags.clipboardWriteSupported
                 , submitDialogState = { clipboardSuccess = False }
                 , gameOver = initialState.gameOver
+                , history = []
                 }
             , Cmd.none
             )
@@ -287,7 +288,7 @@ getMoveOutcome model =
         ( isMoveValid, score ) =
             case checkerResult of
                 ValidPlacement result ->
-                    ( List.isEmpty result.invalidWords, result.score )
+                    ( result.words |> List.all .legal, result.score )
 
                 _ ->
                     ( False, 0 )
@@ -330,6 +331,7 @@ getInitialGameState seed0 =
     , bag = bag2
     , seed = seed2
     , gameOver = False
+    , history = []
     }
 
 
@@ -386,6 +388,7 @@ getNextGameState wordlist turn state =
             , bag = newBag
             , seed = seed
             , gameOver = outcome.gameOver
+            , history = { moveOutcome = outcome } :: state.history
             }
 
 
@@ -428,6 +431,7 @@ urlModelToModel model flags =
         , clipboardWriteSupported = flags.clipboardWriteSupported
         , submitDialogState = { clipboardSuccess = False }
         , gameOver = finalState.gameOver
+        , history = finalState.history
         }
 
 
@@ -702,18 +706,54 @@ viewScoreHeader model moveOutcome =
                 ]
             ]
         , div [ class "move-outcome-container" ]
-            [ div [] [ viewMoveOutcome moveOutcome ]
+            [ div [] [ viewMoveOutcome model moveOutcome ]
             ]
         ]
 
 
-viewMoveOutcome : MoveOutcome -> Html msg
-viewMoveOutcome outcome =
+moveSummaryText : PlayingModel -> MoveOutcome -> Html msg
+moveSummaryText model outcome =
+    case outcome.checkerResult of
+        ValidPlacement { score, words } ->
+            let
+                longestWord =
+                    words |> List.Extra.maximumBy (.tiles >> List.Extra.count .isPreview)
+
+                viewLetter : ScoringCellContents -> Html msg
+                viewLetter t =
+                    span [ classList [ ( "text-col-primary", t.isPreview ) ] ] [ text (String.fromChar t.tile) ]
+            in
+            case longestWord of
+                Just longestWord_ ->
+                    span []
+                        [ text <| model.opponent.name ++ " played "
+                        , span [] (longestWord_.tiles |> List.map viewLetter)
+                        , text <| " for " ++ String.fromInt score ++ " points."
+                        ]
+
+                _ ->
+                    text ""
+
+        _ ->
+            text ""
+
+
+viewMoveOutcome : PlayingModel -> MoveOutcome -> Html msg
+viewMoveOutcome model outcome =
     case outcome.checkerResult of
         NothingPlaced ->
-            text nbsp
+            case model.history of
+                lastTurn :: _ ->
+                    moveSummaryText model lastTurn.moveOutcome
 
-        ValidPlacement { score, invalidWords } ->
+                _ ->
+                    text nbsp
+
+        ValidPlacement { score, words } ->
+            let
+                invalidWords =
+                    words |> List.filter (\s -> not s.legal) |> List.map .word
+            in
             case invalidWords of
                 [] ->
                     div [ style "color" "var(--col-success)" ]

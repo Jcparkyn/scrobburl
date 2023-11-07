@@ -1,4 +1,4 @@
-module Checker exposing (CheckerModel, CheckerResult(..), getLetterValue, gridSize, maxRackSize, multipliers, scoreMove)
+module Checker exposing (CheckerModel, CheckerResult(..), ScoreWordResult, ScoringCellContents, getLetterValue, gridSize, maxRackSize, multipliers, scoreMove)
 
 import Array exposing (Array)
 import Array2D exposing (Array2D)
@@ -18,7 +18,7 @@ type alias CheckerModel =
 
 
 type alias ScoreWordResult =
-    { word : String, score : Int, legal : Bool }
+    { word : String, score : Int, legal : Bool, tiles : List ScoringCellContents }
 
 
 type CheckerResult
@@ -27,7 +27,7 @@ type CheckerResult
     | NotAnchored
     | NotInLine
     | NothingPlaced
-    | ValidPlacement { score : Int, invalidWords : List String }
+    | ValidPlacement { score : Int, words : List ScoreWordResult }
 
 
 gridSize : Int
@@ -140,10 +140,7 @@ scoreMove model =
             in
             ValidPlacement
                 { score = wordScores |> List.map .score |> List.sum
-                , invalidWords =
-                    wordScores
-                        |> List.filter (\s -> not s.legal)
-                        |> List.map .word
+                , words = wordScores
                 }
 
 
@@ -247,6 +244,7 @@ scoreWord wordlist tiles =
     { word = word
     , score = baseScore * wordMultiplier + wordLengthBonus
     , legal = Set.member word wordlist
+    , tiles = tiles
     }
 
 
