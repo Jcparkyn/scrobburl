@@ -57,7 +57,7 @@ type Model
 type alias PlayingModel =
     { selectedCell : Maybe Point
     , selectDirection : SelectDirection
-    , board : Tiles
+    , board : PostTurnBoardState
     , bag : List Tile
     , rack : RackState
     , opponent :
@@ -84,8 +84,12 @@ type alias PostTurnPlayerState =
     }
 
 
+type alias PostTurnBoardState =
+    Array2D (Maybe { placedTurn : Int, tile : Tile })
+
+
 type alias PostTurnGameState =
-    { board : Tiles
+    { board : PostTurnBoardState
     , nextPlayer : PostTurnPlayerState
     , lastPlayer : PostTurnPlayerState
     , bag : List Tile
@@ -108,7 +112,7 @@ getCellContents : PlayingModel -> Point -> CellContents
 getCellContents model point =
     case model.board |> Array2D.get point.x point.y of
         Just (Just tile) ->
-            Placed tile
+            Placed { tile = tile.tile, justPlaced = tile.placedTurn == List.length model.playedTurns - 1 }
 
         _ ->
             let
@@ -126,7 +130,7 @@ getCellContents model point =
                     Empty
 
 
-initialBoard : Tiles
+initialBoard : PostTurnBoardState
 initialBoard =
     Array2D.repeat gridSize gridSize Nothing
 
@@ -338,13 +342,17 @@ getInitialGameState seed0 =
 getNextGameState : Set String -> PlayedTurn -> PostTurnGameState -> PostTurnGameState
 getNextGameState wordlist turn state =
     let
+        boardWithPlacement : Data.Placement -> PostTurnBoardState -> PostTurnBoardState
         boardWithPlacement placement board =
             let
                 tile =
-                    state.nextPlayer.rack |> Array.get placement.rackIndex
+                    state.nextPlayer.rack |> Array.get placement.rackIndex |> Maybe.withDefault 'A'
+
+                newCell =
+                    Just { tile = tile, placedTurn = List.length state.history }
             in
             board
-                |> Array2D.set placement.position.x placement.position.y tile
+                |> Array2D.set placement.position.x placement.position.y newCell
     in
     case turn of
         PlayedTurn placements ->
@@ -357,7 +365,7 @@ getNextGameState wordlist turn state =
 
                 outcome =
                     getMoveOutcome
-                        { board = state.board
+                        { board = state.board |> Array2D.map (Maybe.map .tile)
                         , rack = checkerRack
                         , wordlist = wordlist
                         , bag = state.bag
@@ -561,7 +569,7 @@ view model =
                 let
                     moveOutcome =
                         getMoveOutcome
-                            { board = pm.board
+                            { board = pm.board |> Array2D.map (Maybe.map .tile)
                             , rack = pm.rack
                             , wordlist = pm.wordlist
                             , bag = pm.bag
@@ -721,7 +729,7 @@ moveSummaryText model outcome =
 
                 viewLetter : ScoringCellContents -> Html msg
                 viewLetter t =
-                    span [ classList [ ( "text-col-primary", t.isPreview ) ] ] [ text (String.fromChar t.tile) ]
+                    span [ classList [ ( "just-placed-tile-text", t.isPreview ) ] ] [ text (String.fromChar t.tile) ]
             in
             case longestWord of
                 Just longestWord_ ->
@@ -825,29 +833,28 @@ viewRackTile disable index tile =
         , onClick (PlaceTile index)
         , disabled (disable || tile.placement /= Nothing)
         ]
-        [ viewTile tile.tile True ]
+        [ viewTile tile.tile False True ]
 
 
 viewGrid : Array2D CellProps -> Html Msg
 viewGrid cellProps =
+    let
+        partialGrid =
+            div [ class "grid" ]
+                (cellProps
+                    |> Array2D.indexedMap (\y x p -> viewCell (Point x y) p)
+                    |> Array2D.Extra.flattenToList
+                )
+    in
     Html.node "scroll-repeat"
         [ class "scroll-repeat-view" ]
         -- We use a zero-size div to force the xy coords for panzoom to be the top-left of the grid.
         [ div [ style "width" "0", style "height" "0" ]
             [ div
                 [ id "super-grid" ]
-                (List.repeat 9 (viewPartialGrid cellProps))
+                (List.repeat 9 partialGrid)
             ]
         ]
-
-
-viewPartialGrid : Array2D CellProps -> Html Msg
-viewPartialGrid cellProps =
-    div [ class "grid" ]
-        (cellProps
-            |> Array2D.indexedMap (\y x p -> viewCell (Point x y) p)
-            |> Array2D.Extra.flattenToList
-        )
 
 
 getCellProps : PlayingModel -> Point -> CellProps
@@ -918,18 +925,18 @@ viewCell point state =
                         ]
                         []
 
-            ( Placed tile, _ ) ->
-                viewTile tile False
+            ( Placed { tile, justPlaced }, _ ) ->
+                viewTile tile justPlaced False
 
             ( Preview tile, _ ) ->
-                viewTile tile True
+                viewTile tile False True
         ]
 
 
-viewTile : Tile -> Bool -> Html msg
-viewTile tile isPreview =
+viewTile : Tile -> Bool -> Bool -> Html msg
+viewTile tile isJustPlaced isPreview =
     div
-        [ classList [ ( "tile", True ), ( "preview-tile", isPreview ) ] ]
+        [ classList [ ( "tile", True ), ( "preview-tile", isPreview ), ( "just-placed-tile", isJustPlaced ) ] ]
         [ div [ class "tile-value " ] [ text (getLetterValue tile |> String.fromInt) ]
         , text (String.fromChar tile)
         ]

@@ -1,4 +1,4 @@
-module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
+module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, Placement, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
 
 import Array exposing (Array)
 import Array.Extra
@@ -30,7 +30,7 @@ type CellSelection
 type CellContents
     = Empty
     | Preview Tile
-    | Placed Tile
+    | Placed { tile : Tile, justPlaced : Bool }
 
 
 type alias Multiplier =
@@ -68,7 +68,15 @@ getAllCellContents model =
     let
         initialBoard =
             model.board
-                |> Array2D.map (Maybe.map Placed >> Maybe.withDefault Empty)
+                |> Array2D.map
+                    (\c ->
+                        case c of
+                            Nothing ->
+                                Empty
+
+                            Just tile ->
+                                Placed { tile = tile, justPlaced = False }
+                    )
     in
     Array.foldl
         (\previewTile board ->
@@ -83,8 +91,12 @@ getAllCellContents model =
         model.rack
 
 
+type alias Placement =
+    { rackIndex : Int, position : Point }
+
+
 type PlayedTurn
-    = PlayedTurn (List { rackIndex : Int, position : Point })
+    = PlayedTurn (List Placement)
 
 
 playedTurnToRackState : PlayedTurn -> Array Tile -> RackState

@@ -197,7 +197,7 @@ scoreLine wordlist line =
                             ( mult, Preview tile ) ->
                                 Just { tile = tile, isPreview = True, multiplier = mult }
 
-                            ( mult, Placed tile ) ->
+                            ( mult, Placed { tile } ) ->
                                 Just { tile = tile, isPreview = False, multiplier = mult }
 
                             _ ->

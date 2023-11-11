@@ -4,7 +4,8 @@
   --col-bg: #1d1d1a;
   --col-text: #feffff;
   --col-primary: #fec53c;
-  --col-secondary: #eaeaea;
+  --col-secondary: #c5e4ff;
+  --col-placed-tile: #fff;
   --col-cell: #2d2d2d;
   --col-success: #84ff7a;
   --grid-size: 14;
@@ -159,7 +160,7 @@ dialog > form {
   text-align: center;
   font-size: 35px;
   line-height: var(--cell-size);
-  background-color: var(--col-secondary);
+  background-color: var(--col-placed-tile);
   color: var(--col-bg);
   border-radius: var(--tile-border-radius);
   font-family: Georgia, 'Times New Roman', Times, serif;
@@ -183,6 +184,14 @@ dialog > form {
   animation-name: animate-border-radius;
   animation-duration: 0.2s;
   animation-fill-mode: forwards;
+}
+
+.just-placed-tile {
+  color: #0053be;
+}
+
+.just-placed-tile-text {
+  color: #58a1ff;
 }
 
 .tile-value {
@@ -238,7 +247,7 @@ dialog > form {
 }
 
 .bottom-action-buttons > button {
-  font-size: 2em;
+  font-size: 1.8em;
   font-family: Consolas, monospace;
   padding: 8px 12px;
   /* border-radius: 24px; */
@@ -246,11 +255,3 @@ dialog > form {
   /* background-color: transparent; */
   /* color: var(--col-primary) */
 }
-
-.text-col-primary {
-  color: var(--col-primary);
-}
-
-/* .bottom-action-buttons > button:disabled {
-  color: #fff;
-} */
