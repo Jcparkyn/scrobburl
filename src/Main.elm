@@ -63,6 +63,7 @@ type alias PlayingModel =
     , opponent :
         { name : String
         , score : Int
+        , rack : Array Tile
         }
     , selfName : String
     , selfScore : Int
@@ -218,6 +219,7 @@ init flags url _ =
                 , opponent =
                     { name = initialState.lastPlayer.name
                     , score = 0
+                    , rack = initialState.lastPlayer.rack
                     }
                 , selfName = initialState.nextPlayer.name
                 , selfScore = 0
@@ -429,6 +431,7 @@ urlModelToModel model flags =
         , opponent =
             { name = playerName (turnCount - 1 |> modBy 2)
             , score = finalState.lastPlayer.score
+            , rack = finalState.lastPlayer.rack
             }
         , selfName = playerName (turnCount |> modBy 2)
         , selfScore = finalState.nextPlayer.score
@@ -591,6 +594,7 @@ view model =
                         pm.shareUrlSupported
                         pm.clipboardWriteSupported
                         pm.submitDialogState
+                    , viewUnseenTilesDialog (getUnseenTiles pm)
                     , viewGrid cellProps
                     , viewRack pm.rack pm.gameOver
                     , viewActionButtons moveOutcome pm
@@ -681,7 +685,7 @@ viewSubmitDialog outcome urlQueryState shareUrlSupported clipboardWriteSupported
                     [ text "next turn" ]
                 ]
         , Html.form []
-            [ button [ Html.Attributes.attribute "formmethod" "dialog", id "closeDialogButton" ]
+            [ button [ Html.Attributes.attribute "formmethod" "dialog", class "close-dialog-button" ]
                 [ text "Cancel" ]
             ]
         ]
@@ -700,7 +704,7 @@ viewScoreHeader model moveOutcome =
                 [ text <| gameOverText model.selfScore model.opponent.score ++ " "
                 , a [ href "?", style "color" "var(--col-primary)" ] [ text "Start new game" ]
                 ]
-        , div [ style "display" "flex", style "margin-bottom" "4px" ]
+        , div [ style "display" "flex", style "margin-bottom" "8px" ]
             [ div [ style "flex" "1" ]
                 [ text ("You (" ++ model.selfName ++ "): ")
                 , text (String.fromInt model.selfScore)
@@ -719,7 +723,7 @@ viewScoreHeader model moveOutcome =
         ]
 
 
-moveSummaryText : PlayingModel -> MoveOutcome -> Html msg
+moveSummaryText : PlayingModel -> MoveOutcome -> Html Msg
 moveSummaryText model outcome =
     case outcome.checkerResult of
         ValidPlacement { score, words } ->
@@ -733,10 +737,11 @@ moveSummaryText model outcome =
             in
             case longestWord of
                 Just longestWord_ ->
-                    span []
+                    div []
                         [ text <| model.opponent.name ++ " played "
                         , span [] (longestWord_.tiles |> List.map viewLetter)
-                        , text <| " for " ++ String.fromInt score ++ " points."
+                        , text <| " for " ++ String.fromInt score ++ " points. "
+                        , button [ class "unseen-tiles-button", onClick (OpenDialog "unseenTilesDialog") ] [ text <| String.fromInt (model.bag |> List.length) ++ " tiles left" ]
                         ]
 
                 _ ->
@@ -746,7 +751,7 @@ moveSummaryText model outcome =
             text ""
 
 
-viewMoveOutcome : PlayingModel -> MoveOutcome -> Html msg
+viewMoveOutcome : PlayingModel -> MoveOutcome -> Html Msg
 viewMoveOutcome model outcome =
     case outcome.checkerResult of
         NothingPlaced ->
@@ -939,4 +944,28 @@ viewTile tile isJustPlaced isPreview =
         [ classList [ ( "tile", True ), ( "preview-tile", isPreview ), ( "just-placed-tile", isJustPlaced ) ] ]
         [ div [ class "tile-value " ] [ text (getLetterValue tile |> String.fromInt) ]
         , text (String.fromChar tile)
+        ]
+
+
+getUnseenTiles : PlayingModel -> List Tile
+getUnseenTiles pm =
+    pm.bag ++ Array.toList pm.opponent.rack |> List.sort
+
+
+viewUnseenTilesDialog : List Tile -> Html Msg
+viewUnseenTilesDialog unseenTiles =
+    let
+        groups =
+            unseenTiles
+                |> List.Extra.frequencies
+                |> List.map (\( t, c ) -> t |> List.repeat c |> String.fromList)
+    in
+    Html.node "dialog"
+        [ id "unseenTilesDialog" ]
+        [ h1 [] [ text "Unseen tiles" ]
+        , p [] (groups |> List.map text |> List.intersperse (text " "))
+        , Html.form []
+            [ button [ Html.Attributes.attribute "formmethod" "dialog", class "close-dialog-button" ]
+                [ text "Back" ]
+            ]
         ]
