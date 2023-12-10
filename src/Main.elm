@@ -1,6 +1,7 @@
 port module Main exposing (Flags, Model, MoveOutcome, Msg, PlayingModel, PostTurnGameState, PostTurnPlayerState, SubmitDialogState, main)
 
 import Array exposing (Array)
+import Array.Extra
 import Array2D exposing (Array2D)
 import Array2D.Extra
 import Browser
@@ -60,11 +61,7 @@ type alias PlayingModel =
     , board : PostTurnBoardState
     , bag : List Tile
     , rack : RackState
-    , opponent :
-        { name : String
-        , score : Int
-        , rack : Array Tile
-        }
+    , opponent : PostTurnPlayerState
     , selfName : String
     , selfScore : Int
     , playedTurns : List PlayedTurn
@@ -283,7 +280,7 @@ getMoveOutcome :
     , wordlist : Set String
     , bag : List Tile
     , selfScore : Int
-    , opponentScore : Int
+    , opponent : PostTurnPlayerState
     }
     -> MoveOutcome
 getMoveOutcome model =
@@ -301,17 +298,20 @@ getMoveOutcome model =
 
         gameOver =
             List.isEmpty model.bag
-                && (model.rack |> Array.toList |> List.all (\t -> t.placement /= Nothing))
+                && (model.rack |> Array.Extra.all (\t -> t.placement /= Nothing))
+
+        leftoverTilesPenalty =
+            if gameOver then
+                model.opponent.rack |> Array.toList |> List.map getLetterValue |> List.sum
+
+            else
+                0
 
         newSelfScore =
-            model.selfScore + score
-
-        -- TODO: Subtract tile values
-        newOpponentScore =
-            model.opponentScore
+            model.selfScore + score + leftoverTilesPenalty
     in
     { selfScore = newSelfScore
-    , opponentScore = newOpponentScore
+    , opponentScore = model.opponent.score
     , checkerResult = checkerResult
     , isMoveValid = isMoveValid
     , gameOver = gameOver
@@ -372,7 +372,7 @@ getNextGameState wordlist turn state =
                         , wordlist = wordlist
                         , bag = state.bag
                         , selfScore = state.nextPlayer.score
-                        , opponentScore = state.lastPlayer.score
+                        , opponent = state.lastPlayer
                         }
 
                 -- TODO: Handle game over
@@ -577,7 +577,7 @@ view model =
                             , wordlist = pm.wordlist
                             , bag = pm.bag
                             , selfScore = pm.selfScore
-                            , opponentScore = pm.opponent.score
+                            , opponent = pm.opponent
                             }
 
                     cellProps =
