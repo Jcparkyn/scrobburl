@@ -87,24 +87,36 @@
       return await fetch('sowpods.txt').then(res => res.text());
     }
 
+    const getInitialSeed = () => {
+      // Reuse the same seed if it's already been generated, to discourage reload abuse.
+      const storedSeed = sessionStorage.getItem("initialSeed");
+      if (storedSeed) {
+        return parseInt(storedSeed);
+      }
+      // This seed isn't perfect, but it doesn't matter too much
+      const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+      sessionStorage.setItem("initialSeed", seed);
+      return seed;
+    }
+
     const start = async () => {
-      document.getElementById("myapp").innerHTML = "Loading dictionary...";
+      const appElement = document.getElementById("myapp");
+      appElement.innerHTML = "Loading dictionary...";
       let wordlist;
       try {
         wordlist = await fetchWordlist();
-        document.getElementById("myapp").innerHTML = "Loading app...";
+        appElement.innerHTML = "Loading app...";
       } catch (e) {
-        document.getElementById("myapp").innerHTML = "Failed to load dictionary";
+        appElement.innerHTML = "Failed to load dictionary";
         return;
       }
 
-      // This seed isn't perfect, but it doesn't matter too much
-      const initialSeed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+      const initialSeed = getInitialSeed();
       const shareUrlSupported = !!(navigator.canShare && navigator.canShare({ url: window.location.href }));
       const clipboardWriteSupported = !!(navigator.clipboard && navigator.clipboard.writeText);
 
       const app = Elm.Main.init({
-        node: document.getElementById('myapp'),
+        node: appElement,
         flags: {
           wordlist,
           initialSeed,
@@ -116,6 +128,7 @@
       app.ports.shareUrl.subscribe(({queryState, useClipboard}) => {
         const url = new URL(window.location.href);
         url.searchParams.set("state", queryState);
+        sessionStorage.removeItem("initialSeed");
         if (useClipboard) {
           navigator.clipboard.writeText(url.href);
         }
