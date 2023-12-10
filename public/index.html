@@ -11,8 +11,10 @@
   <meta name="og:url" content="https://jcparkyn.github.io/scrobburl" />
 </head>
 <body>
-  <div id="myapp">Fetching dictionary...</div>
+  <div id="myapp"></div>
+  <noscript>Sorry, but this page requires Javascript to run.</noscript>
   <script>
+    "use strict";
     const cellSizePx = 55;
     const gridSize = 14;
     const gapPx = 4;
@@ -71,7 +73,7 @@
               e.stopPropagation();
             }
           }
-        }, { capture: true});
+        }, { capture: true });
       }
     });
 
@@ -86,7 +88,15 @@
     }
 
     const start = async () => {
-      const wordlist = await fetchWordlist();
+      document.getElementById("myapp").innerHTML = "Loading dictionary...";
+      let wordlist;
+      try {
+        wordlist = await fetchWordlist();
+        document.getElementById("myapp").innerHTML = "Loading app...";
+      } catch (e) {
+        document.getElementById("myapp").innerHTML = "Failed to load dictionary";
+        return;
+      }
 
       // This seed isn't perfect, but it doesn't matter too much
       const initialSeed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
