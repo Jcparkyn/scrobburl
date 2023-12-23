@@ -1,4 +1,4 @@
-module UrlState exposing (DecodeUrlError, UrlModel, decodeUrl, getNextUrlState)
+module UrlState exposing (DecodeUrlError, UrlModel, decodeUrl, encodeUrl)
 
 import Base64
 import Bytes
@@ -16,10 +16,56 @@ import Url.Parser.Query
 import UrlBase64
 
 
+
+-- PUBLIC INTERFACE
+
+
 type alias UrlModel =
     { turns : List PlayedTurn
     , initialSeed : Int
     }
+
+
+type DecodeUrlError
+    = QueryParseError
+    | Base64Error
+    | InflateError
+    | ByteDecodeError
+    | JsonDecodeError D.Error
+
+
+encodeUrl : UrlModel -> String
+encodeUrl model =
+    let
+        bodyJson =
+            E.encode 0 (encodeModelJson model) |> Debug.log "bodyJson"
+    in
+    compressToBase64 bodyJson
+
+
+decodeUrl : Url.Url -> Result DecodeUrlError UrlModel
+decodeUrl url =
+    let
+        route =
+            Url.Parser.query (Url.Parser.Query.string "state")
+
+        stateBase64 =
+            -- Remove the path, otherwise any leading path segments will break the parse
+            Url.Parser.parse route { url | path = "" }
+                |> Maybe.withDefault Nothing
+                |> Result.fromMaybe QueryParseError
+
+        jsonDecode json =
+            D.decodeString decodeModelJson json
+                |> Result.mapError JsonDecodeError
+    in
+    stateBase64
+        |> Result.andThen decompressFromBase64
+        |> Result.andThen jsonDecode
+
+
+
+-- BASE 64
 
 
 compressToBase64 : String -> String
@@ -47,25 +93,27 @@ decompressFromBase64 str =
         |> Result.andThen (decodeAsString >> Result.fromMaybe ByteDecodeError)
 
 
-getNextUrlState : UrlModel -> String
-getNextUrlState model =
-    let
-        bodyJson =
-            E.encode 0 (getNextUrlBody model) |> Debug.log "bodyJson"
-    in
-    compressToBase64 bodyJson
+
+-- JSON
 
 
-getNextUrlBody : UrlModel -> E.Value
-getNextUrlBody model =
+encodeModelJson : UrlModel -> E.Value
+encodeModelJson model =
     E.object
-        [ ( "turns", E.list encodeTurn model.turns )
+        [ ( "turns", E.list encodeTurnJson model.turns )
         , ( "s0", E.int model.initialSeed )
         ]
 
 
-encodeTurn : PlayedTurn -> E.Value
-encodeTurn turn =
+decodeModelJson : Decoder UrlModel
+decodeModelJson =
+    D.map2 UrlModel
+        (D.field "turns" (D.list decodeTurnJson))
+        (D.field "s0" D.int)
+
+
+encodeTurnJson : PlayedTurn -> E.Value
+encodeTurnJson turn =
     case turn of
         PlayedTurn tiles ->
             tiles
@@ -76,8 +124,8 @@ encodeTurn turn =
                 |> E.list E.int
 
 
-decodeTurn : Decoder PlayedTurn
-decodeTurn =
+decodeTurnJson : Decoder PlayedTurn
+decodeTurnJson =
     let
         decodePlacement p =
             case p of
@@ -100,39 +148,3 @@ decodeTurn =
     in
     D.list D.int
         |> D.map decodePlacements
-
-
-decodeModel : Decoder UrlModel
-decodeModel =
-    D.map2 UrlModel
-        (D.field "turns" (D.list decodeTurn))
-        (D.field "s0" D.int)
-
-
-type DecodeUrlError
-    = QueryParseError
-    | Base64Error
-    | InflateError
-    | ByteDecodeError
-    | JsonDecodeError D.Error
-
-
-decodeUrl : Url.Url -> Result DecodeUrlError UrlModel
-decodeUrl url =
-    let
-        route =
-            Url.Parser.query (Url.Parser.Query.string "state")
-
-        stateBase64 =
-            -- Remove the path, otherwise any leading path segments will break the parse
-            Url.Parser.parse route { url | path = "" }
-                |> Maybe.withDefault Nothing
-                |> Result.fromMaybe QueryParseError
-
-        jsonDecode json =
-            D.decodeString decodeModel json
-                |> Result.mapError JsonDecodeError
-    in
-    stateBase64
-        |> Result.andThen decompressFromBase64
-        |> Result.andThen jsonDecode
