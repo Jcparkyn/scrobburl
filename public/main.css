@@ -120,6 +120,18 @@ dialog > form {
   background-color: var(--col-cell);
 }
 
+.cell-selected::before {
+  font-size: 35px;
+  opacity: 0.6;
+  font-family: monospace;
+  text-align: center;
+  position: absolute;
+  width: var(--cell-size);
+  box-sizing: border-box;
+  line-height: 55px;
+  font-weight: bold;
+}
+
 .cell:hover {
   outline: var(--grid-gap) solid #666;
   border-radius: 3px;
@@ -127,17 +139,34 @@ dialog > form {
 
 .cell-2w {
   background-color: rgb(187, 145, 94);
+  color: rgb(176, 127, 66);
+}
+.cell-2w.cell-selected::before {
+  content: "2W";
 }
 .cell-3w {
   background-color: rgb(206, 76, 76);
 }
+.cell-3w.cell-selected::before {
+  content: "3W";
+  color: rgb(206, 76, 76);
+}
 .cell-2l {
   background-color: rgb(98, 142, 178);
+}
+.cell-2l.cell-selected::before {
+  content: "2L";
+  color: rgb(98, 142, 178);
 }
 .cell-3l {
   background-color: rgb(20, 74, 174);
 }
-.cell-origin::before {
+.cell-3l.cell-selected::before {
+  content: "3L";
+  color: rgb(20, 74, 174);
+}
+
+.cell-origin:not(.cell-selected)::before {
   content: "✦";
   font-size: var(--cell-size);
   line-height: 49px;
@@ -147,8 +176,6 @@ dialog > form {
   width: var(--cell-size);
   box-sizing: border-box;
 }
-
-
 
 .cell-select-highlight {
   background-color: #e5dcc2;

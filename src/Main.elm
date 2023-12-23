@@ -876,7 +876,7 @@ getCellState model point =
     let
         -- computes the desired highlight opacity in one dimension
         highlightOpacity selected current =
-            (1 - toFloat (Basics.modBy gridSize (current - selected)) / 7)
+            (1 - toFloat (Basics.modBy gridSize (current - selected)) / 10)
                 |> clamp 0 1
                 |> (*) 0.4
     in
@@ -910,6 +910,7 @@ viewCell point state =
                 , ( "cell-2l", state.multiplier.letter == 2 )
                 , ( "cell-3l", state.multiplier.letter == 3 )
                 , ( "cell-origin", point == Point (gridSize // 2) (gridSize // 2) )
+                , ( "cell-selected", state.state == Selected )
                 ]
 
             else
