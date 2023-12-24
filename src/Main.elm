@@ -22,7 +22,7 @@ import Set exposing (Set)
 import Tuple
 import Url
 import Url.Builder
-import UrlState exposing (decodeUrl, encodeUrl)
+import UrlState exposing (decodeUrl, encodeUrlState)
 
 
 main : Program Flags Model Msg
@@ -590,7 +590,7 @@ view model =
                     [ viewScoreHeader pm moveOutcome
                     , viewSubmitDialog
                         moveOutcome
-                        (encodeUrl (modelToUrlModel pm))
+                        (encodeUrlState (modelToUrlModel pm))
                         pm.shareUrlSupported
                         pm.clipboardWriteSupported
                         pm.submitDialogState

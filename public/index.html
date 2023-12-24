@@ -93,8 +93,9 @@
       if (storedSeed) {
         return parseInt(storedSeed);
       }
-      // This seed isn't perfect, but it doesn't matter too much
-      const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+      // This seed isn't perfect, but it doesn't matter too much.
+      // Limit to 32 bit uint so it can be stored in URL efficiently.
+      const seed = Math.floor(Math.random() * 0xFFFFFFFF);
       sessionStorage.setItem("initialSeed", seed);
       return seed;
     }
@@ -127,8 +128,9 @@
 
       app.ports.shareUrl.subscribe(({queryState, useClipboard}) => {
         const url = new URL(window.location.href);
-        url.searchParams.set("state", queryState);
-        sessionStorage.removeItem("initialSeed");
+        url.searchParams.delete("state");
+        url.searchParams.set("s", queryState);
+        // sessionStorage.removeItem("initialSeed");
         if (useClipboard) {
           navigator.clipboard.writeText(url.href);
         }
