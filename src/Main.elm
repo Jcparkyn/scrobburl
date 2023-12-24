@@ -244,7 +244,7 @@ type Msg
     | ShuffleRack
     | NewRackOrder (List Int)
     | OpenDialog String
-    | ShareUrl { queryState : String, useClipboard : Bool }
+    | ShareUrl { useClipboard : Bool }
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
 
@@ -468,7 +468,7 @@ updatePlaying msg model =
 
         ShareUrl url ->
             ( { model | submitDialogState = { clipboardSuccess = url.useClipboard } }
-            , shareUrl url
+            , shareUrl { queryState = encodeUrlState (modelToUrlModel model), useClipboard = url.useClipboard }
             )
 
         OpenDialog dialogId ->
@@ -588,12 +588,7 @@ view model =
                 in
                 [ main_ []
                     [ viewScoreHeader pm moveOutcome
-                    , viewSubmitDialog
-                        moveOutcome
-                        (encodeUrlState (modelToUrlModel pm))
-                        pm.shareUrlSupported
-                        pm.clipboardWriteSupported
-                        pm.submitDialogState
+                    , viewSubmitDialog moveOutcome pm
                     , viewUnseenTilesDialog (getUnseenTiles pm)
                     , viewGrid cellProps
                     , viewRack pm.rack pm.gameOver
@@ -630,8 +625,8 @@ gameOverText selfScore opponentScore =
         "You tied with " ++ pointsText selfScore ++ "!"
 
 
-viewSubmitDialog : MoveOutcome -> String -> Bool -> Bool -> SubmitDialogState -> Html Msg
-viewSubmitDialog outcome urlQueryState shareUrlSupported clipboardWriteSupported state =
+viewSubmitDialog : MoveOutcome -> PlayingModel -> Html Msg
+viewSubmitDialog outcome pm =
     Html.node "dialog"
         [ id "submitDialog" ]
         [ h1 []
@@ -655,16 +650,16 @@ viewSubmitDialog outcome urlQueryState shareUrlSupported clipboardWriteSupported
                 else
                     "Send a link to your opponent so they can see your final move."
             ]
-        , if shareUrlSupported || clipboardWriteSupported then
+        , if pm.shareUrlSupported || pm.clipboardWriteSupported then
             div [ class "submit-button-container" ]
-                [ Html.Extra.viewIf shareUrlSupported <|
+                [ Html.Extra.viewIf pm.shareUrlSupported <|
                     button
-                        [ onClick (ShareUrl { queryState = urlQueryState, useClipboard = False }) ]
+                        [ onClick (ShareUrl { useClipboard = False }) ]
                         [ text "Share link" ]
-                , Html.Extra.viewIf clipboardWriteSupported <|
+                , Html.Extra.viewIf pm.clipboardWriteSupported <|
                     button
-                        [ onClick (ShareUrl { queryState = urlQueryState, useClipboard = True }) ]
-                        (if state.clipboardSuccess then
+                        [ onClick (ShareUrl { useClipboard = True }) ]
+                        (if pm.submitDialogState.clipboardSuccess then
                             [ text "Copied to", br [] [], text "clipboard!" ]
 
                          else
@@ -676,7 +671,10 @@ viewSubmitDialog outcome urlQueryState shareUrlSupported clipboardWriteSupported
             div [ style "margin-bottom" "16px" ]
                 [ p [] [ text "Your browser doesn't support sharing or copying to the clipboard, so instead you can right click this link and choose \"Copy Link\"." ]
                 , a
-                    [ href (Url.Builder.relative [] [ Url.Builder.string "state" urlQueryState ])
+                    [ href
+                        (Url.Builder.relative []
+                            [ Url.Builder.string "state" (encodeUrlState (modelToUrlModel pm)) ]
+                        )
                     , target "blank"
                     , style "font-size" "1.5em"
                     , style "align-self" "center"
