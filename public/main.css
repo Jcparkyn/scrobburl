@@ -16,6 +16,15 @@
   background-color: var(--col-bg);
 }
 
+@font-face {
+  font-family: 'System Mono';
+  src:
+    local('Consolas'),
+    local('Lucida Sans Typewriter'),
+    local('monaco'),
+    local('monospace');
+}
+
 main {
   display: grid;
   grid-template-columns: auto;
@@ -123,7 +132,7 @@ dialog > form {
 .cell-selected::before {
   font-size: 35px;
   opacity: 0.6;
-  font-family: monospace;
+  font-family: 'System Mono';
   text-align: center;
   position: absolute;
   width: var(--cell-size);
@@ -253,7 +262,7 @@ dialog > form {
 }
 
 .score-header {
-  font-family: monospace;
+  font-family: 'System Mono';
   font-size: 1.5em;
 }
 
@@ -275,7 +284,7 @@ dialog > form {
 
 .bottom-action-buttons > button {
   font-size: 1.8em;
-  font-family: Consolas, monospace;
+  font-family: 'System Mono';
   padding: 8px 12px;
 }
 
