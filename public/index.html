@@ -17,7 +17,7 @@
   <script>
     "use strict";
     const cellSizePx = 55;
-    const gridSize = 14;
+    const gridSize = 15;
     const gapPx = 4;
     customElements.define('scroll-repeat', class extends HTMLElement {
       constructor() { super(); }
@@ -43,7 +43,7 @@
           const grid = document.querySelector(".grid");
           const maxDim = Math.max(this.offsetWidth, this.offsetHeight);
           const offsetWidth = this.offsetWidth;
-          const visualGridSizePx = cellSizePx * (gridSize + 1) + gapPx * gridSize;
+          const visualGridSizePx = cellSizePx * gridSize + gapPx * gridSize;
           // Zoom level that would fit one partial grid perfectly in the scroll-repeat
           const zoomToFit = maxDim / partialGridSizePx;
           // Zoom level that would fit the "visual" grid (with duplicated edges) perfectly in the scroll-repeat

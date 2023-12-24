@@ -32,7 +32,7 @@ type CheckerResult
 
 gridSize : Int
 gridSize =
-    14
+    15
 
 
 maxRackSize : Int
@@ -43,36 +43,37 @@ maxRackSize =
 multipliers : Array2D Multiplier
 multipliers =
     let
-        normalize n =
-            abs (n - gridSize // 2)
+        -- Repeat a tile in all four quadrants
+        tile ( x, y ) val =
+            [ ( ( x, y ), val )
+            , ( ( y, -x ), val )
+            , ( ( -x, -y ), val )
+            , ( ( -y, x ), val )
+            ]
 
         multDict =
-            Dict.fromList
-                [ ( ( 7, 7 ), Multiplier 1 3 )
-                , ( ( 7, 0 ), Multiplier 1 3 )
-                , ( ( 0, 7 ), Multiplier 1 3 )
-                , ( ( 7, 4 ), Multiplier 2 1 )
-                , ( ( 4, 7 ), Multiplier 2 1 )
-                , ( ( 2, 6 ), Multiplier 3 1 )
-                , ( ( 6, 2 ), Multiplier 3 1 )
-                , ( ( 1, 5 ), Multiplier 2 1 )
-                , ( ( 0, 4 ), Multiplier 2 1 )
-                , ( ( 4, 0 ), Multiplier 2 1 )
-                , ( ( 5, 1 ), Multiplier 2 1 )
-                , ( ( 6, 6 ), Multiplier 1 2 )
-                , ( ( 5, 5 ), Multiplier 1 2 )
-                , ( ( 4, 4 ), Multiplier 1 2 )
-                , ( ( 3, 3 ), Multiplier 1 2 )
-                , ( ( 2, 2 ), Multiplier 3 1 )
-                , ( ( 1, 1 ), Multiplier 2 1 )
-                , ( ( 0, 0 ), Multiplier 1 2 )
-                ]
+            Dict.fromList <|
+                ( ( 0, 0 ), Multiplier 1 2 )
+                    :: tile ( 6, 1 ) (Multiplier 1 2)
+                    ++ tile ( 3, 4 ) (Multiplier 1 2)
+                    ++ tile ( 2, 7 ) (Multiplier 1 2)
+                    ++ tile ( 5, 6 ) (Multiplier 1 3)
+                    ++ tile ( 4, 3 ) (Multiplier 1 3)
+                    ++ tile ( 2, 2 ) (Multiplier 3 1)
+                    ++ tile ( 7, 7 ) (Multiplier 3 1)
+                    ++ tile ( 5, 2 ) (Multiplier 3 1)
+                    ++ tile ( 7, 0 ) (Multiplier 3 1)
+                    ++ tile ( 7, 4 ) (Multiplier 2 1)
+                    ++ tile ( 1, 1 ) (Multiplier 2 1)
+                    ++ tile ( 6, 5 ) (Multiplier 2 1)
+                    ++ tile ( 4, 7 ) (Multiplier 2 1)
+                    ++ tile ( 3, 0 ) (Multiplier 2 1)
     in
     Array2D.initialize gridSize
         gridSize
         (\x y ->
             multDict
-                |> Dict.get ( normalize x, normalize y )
+                |> Dict.get ( x - gridSize // 2, y - gridSize // 2 )
                 |> Maybe.withDefault (Multiplier 1 1)
         )
 
