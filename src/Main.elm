@@ -58,6 +58,7 @@ type Model
 type alias PlayingModel =
     { selectedCell : Maybe Point
     , selectDirection : SelectDirection
+    , lastManualSelectedCell : Maybe Point -- For resetting the cursor to an intuitive position
     , board : PostTurnBoardState
     , bag : List Tile
     , rack : RackState
@@ -208,6 +209,7 @@ init flags url _ =
             ( Playing
                 { selectedCell = Nothing
                 , selectDirection = Right
+                , lastManualSelectedCell = Nothing
                 , board = initialBoard
                 , bag = initialState.bag
                 , rack =
@@ -423,6 +425,7 @@ urlModelToModel model flags =
     Playing
         { selectedCell = Nothing
         , selectDirection = Right
+        , lastManualSelectedCell = Nothing
         , board = finalState.board
         , bag = finalState.bag
         , rack =
@@ -458,7 +461,7 @@ updatePlaying msg model =
             ( withPlacedTile model rackIndex, Cmd.none )
 
         ResetRack ->
-            ( { model | rack = resetRackState model.rack }, Cmd.none )
+            ( { model | rack = resetRackState model.rack, selectedCell = model.lastManualSelectedCell }, Cmd.none )
 
         ShuffleRack ->
             ( model, Random.generate NewRackOrder shuffleRackGenerator )
@@ -496,6 +499,7 @@ withSelection model point =
         Preview _ ->
             { model
                 | selectedCell = Just point
+                , lastManualSelectedCell = Just point
                 , rack =
                     model.rack
                         |> Array.map
@@ -511,6 +515,7 @@ withSelection model point =
         Empty ->
             { model
                 | selectedCell = Just point
+                , lastManualSelectedCell = Just point
                 , selectDirection =
                     if model.selectedCell == Just point then
                         swapDirection model.selectDirection
