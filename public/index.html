@@ -24,7 +24,7 @@
       connectedCallback() {
         let dragStart = null;
         const elem = this.firstChild;
-        const partialGridSizePx = (cellSizePx + gapPx) * gridSize; // Width and height of a partial grid
+        const partialGridSizePx = cellSizePx * gridSize + gapPx * (gridSize + 1); // Width and height of a partial grid
 
         const mod = (a, b) => ((a % b) + b) % b;
         const normalize = (n) => mod(n, partialGridSizePx) - partialGridSizePx
