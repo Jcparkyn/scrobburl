@@ -10,6 +10,8 @@ import Data exposing (Placement, PlayedTurn(..))
 import Flate exposing (inflate)
 import Json.Decode as DJ exposing (Decoder)
 import List.Extra
+import Natural exposing (Natural)
+import PackedInts
 import Point exposing (Point)
 import Url
 import Url.Parser
@@ -189,6 +191,42 @@ encodeTurnBytes turn =
                             ]
                     )
                 |> encodeListBytes EB.unsignedInt8
+
+
+encodeTurnPacked : List Placement -> Natural
+encodeTurnPacked tiles =
+    case tiles of
+        [] ->
+            Natural.zero
+
+        first :: rest ->
+            encodeTurnPacked rest
+                |> PackedInts.push 8 first.rackIndex
+                |> PackedInts.push 16 first.position.x
+                |> PackedInts.push 16 first.position.y
+
+
+decodeTurnPacked : Natural -> List Placement
+decodeTurnPacked packed =
+    if Natural.isZero packed then
+        -- TODO: This check isn't valid if the last turn is all zeros
+        []
+
+    else
+        let
+            ( rackIndex, packed1 ) =
+                PackedInts.pop 8 packed
+
+            ( px, packed2 ) =
+                PackedInts.pop 16 packed1
+
+            ( py, packed3 ) =
+                PackedInts.pop 16 packed2
+
+            placement =
+                Placement rackIndex (Point px py)
+        in
+        placement :: decodeTurnPacked packed3
 
 
 decodeTurnBytes : DB.Decoder PlayedTurn
