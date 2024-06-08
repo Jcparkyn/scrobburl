@@ -203,6 +203,9 @@ dialog > form {
   padding: 0 3px 2px 0;
   height: var(--cell-size);
   box-sizing: border-box;
+  /* For some reason firefox mobile sometimes misses touches near the
+  edge of a tile if we don't add this */
+  pointer-events: none;
 }
 
 @keyframes animate-border-radius {
