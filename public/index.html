@@ -129,9 +129,9 @@
 
       app.ports.shareUrl.subscribe(({queryState, useClipboard}) => {
         const url = new URL(window.location.href);
-        url.searchParams.delete("state");
+        url.searchParams.delete("state"); // clean up old-format URLs for back-compat
         url.searchParams.set("s", queryState);
-        // sessionStorage.removeItem("initialSeed");
+        sessionStorage.removeItem("initialSeed");
         if (useClipboard) {
           navigator.clipboard.writeText(url.href);
         }
