@@ -1,4 +1,4 @@
-module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, Placement, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, getAllCellContents, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
+module Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, Placement, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, directionToOffset, getAllCellContents, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
 
 import Array exposing (Array)
 import Array.Extra
@@ -57,6 +57,16 @@ swapDirection dir =
 
         Down ->
             Right
+
+
+directionToOffset : SelectDirection -> Point
+directionToOffset dir =
+    case dir of
+        Right ->
+            Point 1 0
+
+        Down ->
+            Point 0 1
 
 
 type alias Tiles =

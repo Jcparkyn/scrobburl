@@ -5,14 +5,17 @@ import Array.Extra
 import Array2D exposing (Array2D)
 import Array2D.Extra
 import Browser
+import Browser.Events exposing (onKeyDown)
 import Browser.Navigation as Nav
 import Checker exposing (CheckerModel, CheckerResult(..), ScoringCellContents, getLetterValue, gridSize, maxRackSize, scoreMove)
-import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
+import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, directionToOffset, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
 import Html exposing (Html, a, br, button, div, h1, h2, main_, p, span, text)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target, title)
 import Html.Events exposing (onClick)
 import Html.Extra
 import Icons
+import Json.Decode
+import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
 import List.Extra exposing (removeIfIndex)
 import Maybe
 import Point exposing (Point)
@@ -31,7 +34,7 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         , onUrlChange = UrlChanged
         , onUrlRequest = LinkClicked
         }
@@ -45,6 +48,15 @@ port shareUrl : { queryState : String, useClipboard : Bool } -> Cmd msg
 
 
 port openDialog : String -> Cmd msg
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    onKeyDown (Json.Decode.map HandleKeyboardEvent decodeKeyboardEvent)
 
 
 
@@ -249,6 +261,7 @@ type Msg
     | ShareUrl { useClipboard : Bool }
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
+    | HandleKeyboardEvent KeyboardEvent
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -461,7 +474,7 @@ updatePlaying msg model =
             ( withPlacedTile model rackIndex, Cmd.none )
 
         ResetRack ->
-            ( { model | rack = resetRackState model.rack, selectedCell = model.lastManualSelectedCell }, Cmd.none )
+            ( withRackReset model, Cmd.none )
 
         ShuffleRack ->
             ( model, Random.generate NewRackOrder shuffleRackGenerator )
@@ -486,8 +499,173 @@ updatePlaying msg model =
                 Browser.External href ->
                     ( model, Nav.load href )
 
+        HandleKeyboardEvent event ->
+            case event.key of
+                Just "ArrowRight" ->
+                    ( withRightArrow model, Cmd.none )
+
+                Just "ArrowLeft" ->
+                    ( withSelectionOffset model (Point -1 0), Cmd.none )
+
+                Just "ArrowDown" ->
+                    ( withDownArrow model, Cmd.none )
+
+                Just "ArrowUp" ->
+                    ( withSelectionOffset model (Point 0 -1), Cmd.none )
+
+                Just " " ->
+                    ( { model | selectDirection = swapDirection model.selectDirection }, Cmd.none )
+
+                Just "Escape" ->
+                    ( withRackReset model, Cmd.none )
+
+                Just "Backspace" ->
+                    ( withBackspace model, Cmd.none )
+
+                Just key ->
+                    if isLetterKey key then
+                        ( withLetterKeyPressed model key, Cmd.none )
+
+                    else
+                        ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
+
+
+{-| Find the next cell index on the board which matches a predicate, searching from p0 in a given direction.
+-}
+findNextCell : Point -> Point -> (Point -> Bool) -> Maybe Point
+findNextCell p0 step f =
+    let
+        potentialPoints =
+            List.range 1 (gridSize - 1)
+                |> List.map
+                    (\i ->
+                        Point
+                            (modBy gridSize (p0.x + i * step.x))
+                            (modBy gridSize (p0.y + i * step.y))
+                    )
+    in
+    potentialPoints |> List.Extra.find f
+
+
+isLetterKey : String -> Bool
+isLetterKey key =
+    case String.toList key of
+        [ c ] ->
+            Char.isAlpha c
+
+        _ ->
+            False
+
+
+withRightArrow : PlayingModel -> PlayingModel
+withRightArrow model =
+    case model.selectDirection of
+        Right ->
+            withSelectionOffset model (Point 1 0)
+
+        Down ->
+            { model | selectDirection = Right }
+
+
+withDownArrow : PlayingModel -> PlayingModel
+withDownArrow model =
+    case model.selectDirection of
+        Down ->
+            withSelectionOffset model (Point 0 1)
+
+        Right ->
+            { model | selectDirection = Down }
+
+
+withSelectionOffset : PlayingModel -> Point -> PlayingModel
+withSelectionOffset model offset =
+    case model.selectedCell of
+        Nothing ->
+            withSelection model (Point 7 7)
+
+        Just selectedCell ->
+            let
+                newSelection =
+                    findNextCell selectedCell offset (\p -> getCellContents model p == Empty)
+                        |> Maybe.withDefault (Point 7 7)
+            in
+            withSelection model newSelection
+
+
+withLetterKeyPressed : PlayingModel -> String -> PlayingModel
+withLetterKeyPressed model key =
+    let
+        rackIndex =
+            model.rack
+                |> Array.toList
+                |> List.Extra.findIndex
+                    (\tile ->
+                        tile.placement
+                            == Nothing
+                            && String.fromChar tile.tile
+                            == String.toUpper key
+                    )
+    in
+    case rackIndex of
+        Just i ->
+            withPlacedTile model i
+
+        _ ->
+            model
+
+
+withRackReset : PlayingModel -> PlayingModel
+withRackReset model =
+    { model | rack = resetRackState model.rack, selectedCell = model.lastManualSelectedCell }
+
+
+withBackspace : PlayingModel -> PlayingModel
+withBackspace model =
+    case model.selectedCell of
+        Nothing ->
+            model
+
+        Just selection ->
+            let
+                offset =
+                    model.selectDirection |> directionToOffset |> Point.mul -1
+
+                backspacePoint =
+                    findNextCell selection
+                        offset
+                        (\p ->
+                            case getCellContents model p of
+                                Preview _ ->
+                                    True
+
+                                _ ->
+                                    False
+                        )
+            in
+            case backspacePoint of
+                Nothing ->
+                    model
+
+                _ ->
+                    { model
+                        | selectedCell = backspacePoint
+                        , rack =
+                            model.rack
+                                |> Array.map
+                                    (\tile ->
+                                        if tile.placement == backspacePoint then
+                                            { tile | placement = Nothing }
+
+                                        else
+                                            tile
+                                    )
+                    }
 
 
 withSelection : PlayingModel -> Point -> PlayingModel
@@ -533,21 +711,10 @@ withPlacedTile model rackIndex =
 
         _ ->
             let
-                potentialSelectionPoints x0 y0 =
-                    List.range 1 (gridSize - 1)
-                        |> List.map
-                            (\i ->
-                                case model.selectDirection of
-                                    Right ->
-                                        Point (modBy gridSize (x0 + i)) y0
-
-                                    Down ->
-                                        Point x0 (modBy gridSize (y0 + i))
-                            )
-
-                getNextSelectedCell { x, y } =
-                    potentialSelectionPoints x y
-                        |> List.Extra.find (\point -> getCellContents model point == Empty)
+                getNextSelectedCell p0 =
+                    findNextCell p0
+                        (directionToOffset model.selectDirection)
+                        (\point -> getCellContents model point == Empty)
             in
             { model
                 | selectedCell =
