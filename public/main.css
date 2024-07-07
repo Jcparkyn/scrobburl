@@ -50,6 +50,7 @@ body {
   box-sizing: border-box;
   display: flex;
   justify-content: center;
+  color-scheme: dark;
 }
 
 button {
@@ -88,6 +89,10 @@ dialog::backdrop {
 dialog > form {
   display: flex;
   flex-direction: row-reverse;
+}
+
+ul {
+  margin-top: 4px;
 }
 
 .close-dialog-button {
@@ -279,13 +284,29 @@ dialog > form {
   display: flex;
   flex-flow: row wrap;
   justify-content: space-between;
+  gap: 12px;
   margin: 12px 0;
 }
 
 .bottom-action-buttons > button {
-  font-size: 1.8em;
+  font-size: 1.6em;
   font-family: 'System Mono';
-  padding: 8px 12px;
+}
+
+.button-square {
+  width: 1.6em;
+  padding: 0;
+  aspect-ratio: 1;
+}
+
+.button-square > svg {
+  height: 100%;
+}
+
+@media (width <= 450px) {
+  .bottom-action-buttons {
+    margin-inline: 6px;
+  }
 }
 
 .unseen-tiles-button {

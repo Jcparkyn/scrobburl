@@ -9,7 +9,7 @@ import Browser.Events exposing (onKeyDown)
 import Browser.Navigation as Nav
 import Checker exposing (CheckerModel, CheckerResult(..), ScoringCellContents, getLetterValue, gridSize, maxRackSize, scoreMove)
 import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier, PlayedTurn(..), RackState, RackTile, SelectDirection(..), Tile, Tiles, directionToOffset, isRackReset, playedTurnToRackState, resetRackState, shuffleRack, swapDirection)
-import Html exposing (Html, a, br, button, div, h1, h2, main_, p, span, text)
+import Html exposing (Html, a, br, button, div, h1, h2, li, main_, p, span, text, ul)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target, title)
 import Html.Events exposing (onClick)
 import Html.Extra
@@ -761,6 +761,7 @@ view model =
                 [ main_ []
                     [ viewScoreHeader pm moveOutcome
                     , viewSubmitDialog moveOutcome pm
+                    , viewInfoDialog
                     , viewUnseenTilesDialog (getUnseenTiles pm)
                     , viewGrid cellProps
                     , viewRack pm.rack pm.gameOver
@@ -795,6 +796,42 @@ gameOverText selfScore opponentScore =
 
     else
         "You tied with " ++ pointsText selfScore ++ "!"
+
+
+viewInfoDialog : Html msg
+viewInfoDialog =
+    Html.node "dialog"
+        [ id "infoDialog", style "width" "500px" ]
+        [ h1 [] [ text "About Scrobburl" ]
+        , a [ href "https://github.com/jcparkyn/scrobburl", target "_blank" ] [ text "View on GitHub" ]
+        , p []
+            [ text "Scrobburl (pronounced \"scrobble\") is a multiplayer word game where all state is stored in the URL. "
+            ]
+        , h2 [] [ text "Rules" ]
+        , p []
+            [ text
+                """The first word played must pass through the star in the center.
+                All other words must connect to at least one existing word.
+                """
+            ]
+        , h2 [] [ text "Scoring" ]
+        , p []
+            [ text
+                """Blue squares multiply the value of the letter placed on top of them, and orange/red squares multiply
+                the value of the whole word.
+                """
+            ]
+        , p []
+            [ text "You get extra points for playing more tiles in one turn:"
+            , ul []
+                [ li [] [ text "5 tiles: +5 points" ]
+                , li [] [ text "6 tiles: +15 points" ]
+                , li [] [ text "7 tiles: +30 points" ]
+                , li [] [ text "8 tiles: +50 points" ]
+                ]
+            ]
+        , viewCloseDialogButton [ text "Back" ]
+        ]
 
 
 viewSubmitDialog : MoveOutcome -> PlayingModel -> Html Msg
@@ -854,10 +891,15 @@ viewSubmitDialog outcome pm =
                     ]
                     [ text "next turn" ]
                 ]
-        , Html.form []
-            [ button [ Html.Attributes.attribute "formmethod" "dialog", class "close-dialog-button" ]
-                [ text "Cancel" ]
-            ]
+        , viewCloseDialogButton [ text "Cancel" ]
+        ]
+
+
+viewCloseDialogButton : List (Html msg) -> Html msg
+viewCloseDialogButton children =
+    Html.form []
+        [ button [ Html.Attributes.attribute "formmethod" "dialog", class "close-dialog-button" ]
+            children
         ]
 
 
@@ -970,14 +1012,25 @@ viewActionButtons : MoveOutcome -> PlayingModel -> Html Msg
 viewActionButtons outcome pm =
     Html.Extra.viewIf (not pm.gameOver) <|
         div [ class "bottom-action-buttons" ]
-            [ button [ onClick ResetRack, title "Reset rack", disabled (isRackReset pm.rack) ] [ Icons.cornerLeftDown ]
+            [ button [ onClick ResetRack, title "Reset rack", class "button-square", disabled (isRackReset pm.rack) ]
+                [ Icons.cornerLeftDown ]
+            , button [ onClick ShuffleRack, title "Shuffle rack", class "button-square" ]
+                [ Icons.shuffle ]
+            , button
+                [ onClick (OpenDialog "infoDialog")
+                , title "About"
+                , class "button-square"
+                , style "margin-right" "auto"
+                ]
+                [ text "?" ]
             , button
                 [ onClick (OpenDialog "submitDialog")
                 , disabled (not outcome.isMoveValid)
                 , title "Play turn"
+                , style "padding" "4px 8px"
+                , style "margin-left" "auto"
                 ]
                 [ text "Play turn" ]
-            , button [ onClick ShuffleRack, title "Shuffle rack" ] [ Icons.shuffle ]
             ]
 
 
@@ -1135,8 +1188,5 @@ viewUnseenTilesDialog unseenTiles =
         [ id "unseenTilesDialog" ]
         [ h1 [] [ text "Unseen tiles" ]
         , p [] (groups |> List.map text |> List.intersperse (text " "))
-        , Html.form []
-            [ button [ Html.Attributes.attribute "formmethod" "dialog", class "close-dialog-button" ]
-                [ text "Back" ]
-            ]
+        , viewCloseDialogButton [ text "Back" ]
         ]
