@@ -32,7 +32,6 @@ main {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
   flex-basis: var(--default-board-size);
 }
 
@@ -289,8 +288,6 @@ ul {
 .bottom-action-buttons > button {
   font-size: 1.6em;
   font-family: 'System Mono';
-  /* Add margin to stop hover outline from being cut off */
-  margin: 2px;
 }
 
 .button-square {
