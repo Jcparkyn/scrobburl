@@ -26,13 +26,8 @@
 }
 
 main {
-  display: grid;
-  grid-template-columns: auto;
-  grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    "score-header"
-    "board"
-    "rack";
+  display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
   flex-basis: var(--default-board-size);
@@ -97,7 +92,7 @@ ul {
 
 .close-dialog-button {
   background-color:  transparent;
-  border: 2px  solid rgba(255, 255, 255, 0.527);
+  border: 2px solid rgba(255, 255, 255, 0.527);
   color: white;
   font-size: 1.2em;
 }
@@ -112,7 +107,7 @@ ul {
 .scroll-repeat-view {
   overflow: hidden;
   max-height: var(--default-board-size);
-  grid-area: board;
+  flex-grow: 100;
 }
 
 #super-grid {
@@ -244,14 +239,12 @@ ul {
 }
 
 .rack {
-  grid-area: rack;
   border-bottom: 3px solid #5b5b5b;
   display: inline-flex;
   flex-flow: row wrap;
   padding: 4px;
   user-select: none;
   justify-content: center;
-  margin-top: 16px;
   margin-bottom: 4px;
   overflow-x: auto;
 }
@@ -268,16 +261,18 @@ ul {
 
 .score-header {
   font-family: 'System Mono';
-  font-size: 1.5em;
+  font-size: 1.2em;
 }
 
-.move-outcome-container {
+.bottom-summary-container {
+  margin-top: 6px;
   margin-bottom: 6px;
-  line-height: 1em;
-  min-height: 2em;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  font-family: 'System Mono';
+  font-size: 1.2em;
+  flex-grow: 1;
 }
 
 .bottom-action-buttons {
@@ -320,6 +315,7 @@ ul {
   font-size: inherit;
   float: right;
   padding: 0;
+  margin-left: 0.5em;
   line-height: inherit;
   opacity: 0.7;
 }

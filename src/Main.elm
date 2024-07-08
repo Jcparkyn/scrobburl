@@ -758,12 +758,13 @@ view model =
                             gridSize
                             (\y x -> getCellProps pm (Point x y))
                 in
-                [ main_ []
+                [ viewSubmitDialog moveOutcome pm
+                , viewInfoDialog
+                , viewUnseenTilesDialog (getUnseenTiles pm)
+                , main_ []
                     [ viewScoreHeader pm moveOutcome
-                    , viewSubmitDialog moveOutcome pm
-                    , viewInfoDialog
-                    , viewUnseenTilesDialog (getUnseenTiles pm)
                     , viewGrid cellProps
+                    , viewBottomSummary pm moveOutcome
                     , viewRack pm.rack pm.gameOver
                     , viewActionButtons moveOutcome pm
                     ]
@@ -929,9 +930,10 @@ viewScoreHeader model moveOutcome =
                 , text (nbsp ++ "points")
                 ]
             ]
-        , div [ class "move-outcome-container" ]
-            [ div [] [ viewMoveOutcome model moveOutcome ]
-            ]
+
+        -- , div [ class "move-outcome-container" ]
+        --     [ div [] [ viewMoveOutcome model moveOutcome ]
+        --     ]
         ]
 
 
@@ -949,11 +951,10 @@ moveSummaryText model outcome =
             in
             case longestWord of
                 Just longestWord_ ->
-                    div []
+                    span []
                         [ text <| model.opponent.name ++ " played "
                         , span [] (longestWord_.tiles |> List.map viewLetter)
                         , text <| " for " ++ String.fromInt score ++ " points. "
-                        , button [ class "unseen-tiles-button", onClick (OpenDialog "unseenTilesDialog") ] [ text <| String.fromInt (model.bag |> List.length) ++ " tiles left" ]
                         ]
 
                 _ ->
@@ -961,6 +962,17 @@ moveSummaryText model outcome =
 
         _ ->
             text ""
+
+
+viewBottomSummary : PlayingModel -> MoveOutcome -> Html Msg
+viewBottomSummary model outcome =
+    div [ class "bottom-summary-container" ]
+        [ div [ style "line-height" "1em", style "min-height" "2em" ]
+            [ viewMoveOutcome model outcome
+            , button [ class "unseen-tiles-button", onClick (OpenDialog "unseenTilesDialog") ]
+                [ text <| String.fromInt (model.bag |> List.length) ++ " tiles left" ]
+            ]
+        ]
 
 
 viewMoveOutcome : PlayingModel -> MoveOutcome -> Html Msg
@@ -981,7 +993,7 @@ viewMoveOutcome model outcome =
             in
             case invalidWords of
                 [] ->
-                    div [ style "color" "var(--col-success)" ]
+                    span [ style "color" "var(--col-success)" ]
                         [ text ("Your move: " ++ String.fromInt score ++ " points. ") ]
 
                 [ invalidWord ] ->
