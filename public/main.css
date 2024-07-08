@@ -19,10 +19,13 @@
 @font-face {
   font-family: 'System Mono';
   src:
+    url('CascadiaMono.woff2') format('woff2'),
     local('Consolas'),
     local('Lucida Sans Typewriter'),
+    local('Droid Sans Mono'),
     local('monaco'),
     local('monospace');
+  font-display: swap;
 }
 
 main {
