@@ -284,13 +284,15 @@ ul {
   display: flex;
   flex-flow: row wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin: 12px 0;
 }
 
 .bottom-action-buttons > button {
   font-size: 1.6em;
   font-family: 'System Mono';
+  /* Add margin to stop hover outline from being cut off */
+  margin: 2px;
 }
 
 .button-square {
