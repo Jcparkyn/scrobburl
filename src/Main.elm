@@ -1199,6 +1199,7 @@ viewUnseenTilesDialog unseenTiles =
     Html.node "dialog"
         [ id "unseenTilesDialog" ]
         [ h1 [] [ text "Unseen tiles" ]
-        , p [] (groups |> List.map text |> List.intersperse (text " "))
+        , p [ style "font-family" "System Mono", style "font-size" "1.3em" ]
+            (groups |> List.map text |> List.intersperse (text " "))
         , viewCloseDialogButton [ text "Back" ]
         ]
