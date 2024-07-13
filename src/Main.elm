@@ -738,39 +738,39 @@ updateElement index fun array =
 
 view : Model -> Browser.Document Msg
 view model =
-    { body =
-        case model of
-            Playing pm ->
-                let
-                    moveOutcome =
-                        getMoveOutcome
-                            { board = pm.board |> Array2D.map (Maybe.map .tile)
-                            , rack = pm.rack
-                            , wordlist = pm.wordlist
-                            , bag = pm.bag
-                            , selfScore = pm.selfScore
-                            , opponent = pm.opponent
-                            }
+    case model of
+        Playing pm ->
+            let
+                moveOutcome =
+                    getMoveOutcome
+                        { board = pm.board |> Array2D.map (Maybe.map .tile)
+                        , rack = pm.rack
+                        , wordlist = pm.wordlist
+                        , bag = pm.bag
+                        , selfScore = pm.selfScore
+                        , opponent = pm.opponent
+                        }
 
-                    cellProps =
-                        Array2D.initialize
-                            gridSize
-                            gridSize
-                            (\y x -> getCellProps pm (Point x y))
-                in
+                cellProps =
+                    Array2D.initialize
+                        gridSize
+                        gridSize
+                        (\y x -> getCellProps pm (Point x y))
+            in
+            { body =
                 [ viewSubmitDialog moveOutcome pm
                 , viewInfoDialog
                 , viewUnseenTilesDialog (getUnseenTiles pm)
                 , main_ []
-                    [ viewScoreHeader pm moveOutcome
+                    [ viewScoreHeader pm
                     , viewGrid cellProps
                     , viewBottomSummary pm moveOutcome
                     , viewRack pm.rack pm.gameOver
                     , viewActionButtons moveOutcome pm
                     ]
                 ]
-    , title = "Scrobburl"
-    }
+            , title = pageTitle pm
+            }
 
 
 type alias SubmitDialogState =
@@ -909,8 +909,8 @@ nbsp =
     "\u{00A0}"
 
 
-viewScoreHeader : PlayingModel -> MoveOutcome -> Html Msg
-viewScoreHeader model moveOutcome =
+viewScoreHeader : PlayingModel -> Html Msg
+viewScoreHeader model =
     div [ style "grid-area" "score-header", class "score-header" ]
         [ Html.Extra.viewIf model.gameOver <|
             h2 []
@@ -930,10 +930,6 @@ viewScoreHeader model moveOutcome =
                 , text (nbsp ++ "points")
                 ]
             ]
-
-        -- , div [ class "move-outcome-container" ]
-        --     [ div [] [ viewMoveOutcome model moveOutcome ]
-        --     ]
         ]
 
 
@@ -962,6 +958,29 @@ moveSummaryText model outcome =
 
         _ ->
             text ""
+
+
+pageTitle : PlayingModel -> String
+pageTitle pm =
+    case pm.history |> List.map (.moveOutcome >> .checkerResult) of
+        (ValidPlacement { score, words }) :: _ ->
+            let
+                longestWord =
+                    words
+                        |> List.Extra.maximumBy (.tiles >> List.Extra.count .isPreview)
+                        |> Maybe.map .word
+                        |> Maybe.withDefault ""
+            in
+            "Scrobburl | "
+                ++ pm.opponent.name
+                ++ " played "
+                ++ longestWord
+                ++ " for "
+                ++ String.fromInt score
+                ++ " points. "
+
+        _ ->
+            "Scrobburl"
 
 
 viewBottomSummary : PlayingModel -> MoveOutcome -> Html Msg
