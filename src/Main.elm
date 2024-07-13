@@ -12,7 +12,7 @@ import Data exposing (CellContents(..), CellProps, CellSelection(..), Multiplier
 import Html exposing (Html, a, br, button, div, h1, h2, li, main_, p, span, text, ul)
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target, title)
 import Html.Events exposing (onClick)
-import Html.Extra
+import Html.Extra exposing (viewIf)
 import Icons
 import Json.Decode
 import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
@@ -759,7 +759,7 @@ view model =
             in
             { body =
                 [ viewSubmitDialog moveOutcome pm
-                , viewInfoDialog
+                , viewInfoDialog pm
                 , viewUnseenTilesDialog (getUnseenTiles pm)
                 , main_ []
                     [ viewScoreHeader pm
@@ -799,9 +799,15 @@ gameOverText selfScore opponentScore =
         "You tied with " ++ pointsText selfScore ++ "!"
 
 
-viewInfoDialog : Html msg
-viewInfoDialog =
-    Html.node "dialog"
+dialog : List (Html.Attribute msg) -> List (Html msg) -> Html msg
+dialog attrs children =
+    -- Child div to separate background from foreground clicks
+    Html.node "dialog" attrs [ div [] children ]
+
+
+viewInfoDialog : PlayingModel -> Html msg
+viewInfoDialog pm =
+    dialog
         [ id "infoDialog", style "width" "500px" ]
         [ h1 [] [ text "About Scrobburl" ]
         , a [ href "https://github.com/jcparkyn/scrobburl", target "_blank" ] [ text "View on GitHub" ]
@@ -831,13 +837,17 @@ viewInfoDialog =
                 , li [] [ text "8 tiles: +50 points" ]
                 ]
             ]
-        , viewCloseDialogButton [ text "Back" ]
+        , div [ class "dialog-action-buttons" ]
+            [ viewIf (pm.playedTurns |> List.isEmpty |> not) <|
+                a [ href "/" ] [ button [ class "close-dialog-button" ] [ text "Start new game" ] ]
+            , viewCloseDialogButton [ text "Back" ]
+            ]
         ]
 
 
 viewSubmitDialog : MoveOutcome -> PlayingModel -> Html Msg
 viewSubmitDialog outcome pm =
-    Html.node "dialog"
+    dialog
         [ id "submitDialog" ]
         [ h1 []
             [ text <|
@@ -892,13 +902,14 @@ viewSubmitDialog outcome pm =
                     ]
                     [ text "next turn" ]
                 ]
-        , viewCloseDialogButton [ text "Cancel" ]
+        , div [ class "dialog-action-buttons" ]
+            [ viewCloseDialogButton [ text "Cancel" ] ]
         ]
 
 
 viewCloseDialogButton : List (Html msg) -> Html msg
 viewCloseDialogButton children =
-    Html.form []
+    Html.form [ style "margin-left" "auto" ]
         [ button [ Html.Attributes.attribute "formmethod" "dialog", class "close-dialog-button" ]
             children
         ]
@@ -1215,10 +1226,11 @@ viewUnseenTilesDialog unseenTiles =
                 |> List.Extra.frequencies
                 |> List.map (\( t, c ) -> t |> List.repeat c |> String.fromList)
     in
-    Html.node "dialog"
+    dialog
         [ id "unseenTilesDialog" ]
         [ h1 [] [ text "Unseen tiles" ]
         , p [ style "font-family" "System Mono", style "font-size" "1.3em" ]
             (groups |> List.map text |> List.intersperse (text " "))
-        , viewCloseDialogButton [ text "Back" ]
+        , div [ class "dialog-action-buttons" ]
+            [ viewCloseDialogButton [ text "Back" ] ]
         ]

@@ -77,19 +77,25 @@ dialog {
   color: var(--col-text);
   border-color: #000;
   width: 350px;
+  font-family: 'System Mono';
+  padding: 0;
 }
 
 dialog::backdrop {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
-dialog > form {
-  display: flex;
-  flex-direction: row-reverse;
+dialog > div {
+  padding: 16px;
 }
 
 ul {
   margin-top: 4px;
+}
+
+.dialog-action-buttons {
+  display: flex;
+  justify-content: space-between;
 }
 
 .close-dialog-button {
@@ -104,6 +110,7 @@ ul {
   flex-direction: column;
   gap: 16px;
   margin-bottom: 22px;
+  font-size: 0.9em;
 }
 
 .scroll-repeat-view {
