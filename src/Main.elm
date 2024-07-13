@@ -204,7 +204,7 @@ parseWordList strList =
 
 init : Flags -> Url.Url -> key -> ( Model, Cmd msg )
 init flags url _ =
-    case Debug.log "URL model" (decodeUrl url) of
+    case decodeUrl url of
         Ok model ->
             ( urlModelToModel model flags
             , Cmd.none
@@ -214,9 +214,6 @@ init flags url _ =
             let
                 initialState =
                     getInitialGameState (Random.initialSeed flags.initialSeed)
-
-                _ =
-                    Debug.log "initialSeed" flags.initialSeed
             in
             ( Playing
                 { selectedCell = Nothing
@@ -331,7 +328,6 @@ getMoveOutcome model =
     , isMoveValid = isMoveValid
     , gameOver = gameOver
     }
-        |> Debug.log "moveOutcome"
 
 
 getInitialGameState : Random.Seed -> PostTurnGameState
@@ -464,7 +460,7 @@ urlModelToModel model flags =
 
 updatePlaying : Msg -> PlayingModel -> ( PlayingModel, Cmd Msg )
 updatePlaying msg model =
-    case Debug.log "msg" msg of
+    case msg of
         Select point ->
             ( withSelection model point
             , Cmd.none
