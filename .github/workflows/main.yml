@@ -27,9 +27,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "18"
-      - run: npm install -g elm
+      - run: npm install -g elm@latest-0.19.1 uglify-js@3.18.0
       - name: make
-        run: elm make src/Main.elm --output=public/main.js
+        run: ./optimize.sh src/Main.elm
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:

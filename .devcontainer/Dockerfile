@@ -19,6 +19,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     elm-test@${ELM_TEST_VERSION} \
     elm-format@${ELM_FORMAT_VERSION} \
     elm-live@${ELM_LIVE_VERSION} \
+    uglify-js@3.18.0 \
     #
     # [Optional] Update UID/GID if needed
     && if [ "$USER_GID" != "1000" ] || [ "$USER_UID" != "1000" ]; then \
