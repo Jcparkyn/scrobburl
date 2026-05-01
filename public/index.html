@@ -62,6 +62,7 @@
         window.addEventListener("resize", onViewportResize);
         setTimeout(onViewportResize);
         elem.addEventListener('pointerdown', (event) => {
+          dragStart = null; // Always reset so stale values don't suppress clicks on draggable tiles
           // If starting on a draggable tile, let HTML5 drag-and-drop handle it
           // instead of panning the board.
           if (event.target.closest('[draggable="true"]')) {

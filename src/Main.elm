@@ -490,7 +490,8 @@ updatePlaying msg model =
                             case dropId of
                                 DropRack dropRackId ->
                                     if dragId == dropRackId then
-                                        model
+                                        -- Same target: just clear placement (return to rack)
+                                        { model | rack = model.rack |> updateElement dragId (\t -> { t | placement = Nothing }) }
 
                                     else
                                         let
@@ -537,7 +538,7 @@ updatePlaying msg model =
                                                     model.rack
                                                     newSortIndices
                                         in
-                                        { model | rack = newRack }
+                                        { model | rack = newRack |> updateElement dragId (\t -> { t | placement = Nothing }) }
 
                                 DropBoard dropPoint ->
                                     let
@@ -1363,11 +1364,7 @@ viewCell point state =
                 viewTile tile justPlaced False
 
             ( Preview { tile, rackIndex }, _ ) ->
-                let
-                    dragAttr =
-                        DragDrop.draggable DragDropMsg rackIndex
-                in
-                div dragAttr [ viewTile tile False True ]
+                div (DragDrop.draggable DragDropMsg rackIndex) [ viewTile tile False True ]
         ]
 
 
