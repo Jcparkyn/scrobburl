@@ -11,6 +11,8 @@
   <meta name="viewport" content="width=device-width, height=100vh, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
   <meta name="og:url" content="https://scrobburl.com" />
   <script data-goatcounter="https://scrobburl.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
 </head>
 <body>
   <div id="myapp"></div>
@@ -154,6 +156,12 @@
         dialog?.showModal();
       })
     }
+
+    MobileDragDrop.polyfill({
+      holdToDrag: 0
+    });
+    window.addEventListener('touchmove', function() {}, {passive: false});
+
     start();
   </script>
 </body>
