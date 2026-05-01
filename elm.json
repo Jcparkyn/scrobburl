@@ -23,6 +23,7 @@
             "elm-community/list-extra": "8.7.0",
             "elm-community/random-extra": "3.2.0",
             "folkertdev/elm-flate": "2.0.5",
+            "norpan/elm-html5-drag-drop": "3.1.4",
             "tortus/elm-array-2d": "3.0.0"
         },
         "indirect": {

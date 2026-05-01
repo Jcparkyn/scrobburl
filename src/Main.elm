@@ -13,6 +13,7 @@ import Html exposing (Html, a, br, button, div, h1, h2, li, main_, p, span, text
 import Html.Attributes exposing (class, classList, disabled, href, id, style, target, title)
 import Html.Events exposing (onClick)
 import Html.Extra exposing (viewIf)
+import Html5.DragDrop as DragDrop
 import Icons
 import Json.Decode
 import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
@@ -85,6 +86,7 @@ type alias PlayingModel =
     , submitDialogState : SubmitDialogState
     , gameOver : Bool
     , history : List { moveOutcome : MoveOutcome }
+    , dragDrop : DragDrop.Model Int Int
     }
 
 
@@ -223,7 +225,7 @@ init flags url _ =
                 , bag = initialState.bag
                 , rack =
                     initialState.nextPlayer.rack
-                        |> Array.map (\c -> RackTile 0 c Nothing)
+                        |> Array.indexedMap (\i c -> RackTile i c Nothing)
                 , opponent =
                     { name = initialState.lastPlayer.name
                     , score = 0
@@ -239,6 +241,7 @@ init flags url _ =
                 , submitDialogState = { clipboardSuccess = False }
                 , gameOver = initialState.gameOver
                 , history = []
+                , dragDrop = DragDrop.init
                 }
             , Cmd.none
             )
@@ -259,6 +262,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | HandleKeyboardEvent KeyboardEvent
+    | DragDropMsg (DragDrop.Msg Int Int)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -439,7 +443,7 @@ urlModelToModel model flags =
         , bag = finalState.bag
         , rack =
             finalState.nextPlayer.rack
-                |> Array.map (\tile -> RackTile 0 tile Nothing)
+                |> Array.indexedMap (\i tile -> RackTile i tile Nothing)
         , opponent =
             { name = playerName (turnCount - 1 |> modBy 2)
             , score = finalState.lastPlayer.score
@@ -455,6 +459,7 @@ urlModelToModel model flags =
         , submitDialogState = { clipboardSuccess = False }
         , gameOver = finalState.gameOver
         , history = finalState.history
+        , dragDrop = DragDrop.init
         }
 
 
@@ -465,6 +470,63 @@ updatePlaying msg model =
             ( withSelection model point
             , Cmd.none
             )
+
+        DragDropMsg dragDropMsg ->
+            let
+                ( newDragDrop, result ) =
+                    DragDrop.update dragDropMsg model.dragDrop
+
+                newModel =
+                    case result of
+                        Nothing ->
+                            model
+
+                        Just ( dragId, dropId, _ ) ->
+                            let
+                                sortedRack =
+                                    model.rack
+                                        |> Array.toIndexedList
+                                        |> List.sortBy (\( _, t ) -> t.sortIndex)
+                                        |> List.map Tuple.first
+
+                                withoutDrag =
+                                    List.Extra.remove dragId sortedRack
+
+                                insertIndex =
+                                    if dropId == 999 then
+                                        List.length withoutDrag
+                                    else if dropId == 998 then
+                                        0
+                                    else
+                                        List.Extra.elemIndex dropId withoutDrag
+                                            |> Maybe.withDefault (List.length withoutDrag)
+
+                                ( before, after ) =
+                                    List.Extra.splitAt insertIndex withoutDrag
+
+                                newOrder =
+                                    before ++ (dragId :: after)
+
+                                newSortIndices =
+                                    newOrder
+                                        |> List.indexedMap (\sortIndex originalIndex -> ( originalIndex, sortIndex ))
+
+                                newRack =
+                                    List.foldl
+                                        (\( originalIndex, newSortIndex ) currentRack ->
+                                            case Array.get originalIndex currentRack of
+                                                Just t ->
+                                                    Array.set originalIndex { t | sortIndex = newSortIndex } currentRack
+
+                                                Nothing ->
+                                                    currentRack
+                                        )
+                                        model.rack
+                                        newSortIndices
+                            in
+                            { model | rack = newRack }
+            in
+            ( { newModel | dragDrop = newDragDrop }, Cmd.none )
 
         PlaceTile rackIndex ->
             ( withPlacedTile model rackIndex, Cmd.none )
@@ -761,7 +823,7 @@ view model =
                     [ viewScoreHeader pm
                     , viewGrid cellProps
                     , viewBottomSummary pm moveOutcome
-                    , viewRack pm.rack pm.gameOver
+                    , viewRack pm
                     , viewActionButtons moveOutcome pm
                     ]
                 ]
@@ -1072,33 +1134,79 @@ viewActionButtons outcome pm =
             ]
 
 
-viewRack : RackState -> Bool -> Html Msg
-viewRack rack disable =
+viewRack : PlayingModel -> Html Msg
+viewRack pm =
     let
         sortedRack =
-            rack
+            pm.rack
                 |> Array.toIndexedList
                 -- Ideally this would be a stable sort, but it doesn't matter too much
                 |> List.sortBy (\( _, t ) -> t.sortIndex)
 
         rackViews =
-            List.map (\( i, t ) -> viewRackTile disable i t) sortedRack
+            List.indexedMap (\viewIndex ( originalIndex, t ) ->
+                let
+                    isLastTile =
+                        viewIndex == Array.length pm.rack - 1
+
+                    isEndDropTarget =
+                        isLastTile && DragDrop.getDropId pm.dragDrop == Just 999
+
+                    isStartDropTarget =
+                        viewIndex == 0 && DragDrop.getDropId pm.dragDrop == Just 998
+                in
+                viewRackTile pm originalIndex t isEndDropTarget isStartDropTarget
+            ) sortedRack
+
+        endDropIndicator =
+            Html.div
+                (style "flex-grow" "1" :: DragDrop.droppable DragDropMsg 999)
+                []
+
+        startDropIndicator =
+            Html.div
+                (style "flex-grow" "1" :: DragDrop.droppable DragDropMsg 998)
+                []
 
         ( first, rest ) =
-            List.Extra.splitAt (Array.length rack - 3) rackViews
+            List.Extra.splitAt (Array.length pm.rack - 3) rackViews
     in
     div [ class "rack" ]
         -- The last 3 tiles go in a separate div, so that they wrap together
-        (first ++ [ div [] rest ])
+        (startDropIndicator :: first ++ [ div [] rest, endDropIndicator ])
 
 
-viewRackTile : Bool -> Int -> RackTile -> Html Msg
-viewRackTile disable index tile =
+viewRackTile : PlayingModel -> Int -> RackTile -> Bool -> Bool -> Html Msg
+viewRackTile pm index tile isEndDropTarget isStartDropTarget =
+    let
+        dragDropAttr =
+            if pm.gameOver || tile.placement /= Nothing then
+                []
+
+            else
+                DragDrop.draggable DragDropMsg index ++ DragDrop.droppable DragDropMsg index
+
+        dropClass =
+            if DragDrop.getDropId pm.dragDrop == Just index then
+                [ class "drop-target" ]
+
+            else if isEndDropTarget then
+                [ class "drop-target-end" ]
+
+            else if isStartDropTarget then
+                [ class "drop-target" ]
+
+            else
+                []
+    in
     button
-        [ class "rack-tile"
-        , onClick (PlaceTile index)
-        , disabled (disable || tile.placement /= Nothing)
-        ]
+        ([ class "rack-tile"
+         , onClick (PlaceTile index)
+         , disabled (pm.gameOver || tile.placement /= Nothing)
+         ]
+            ++ dragDropAttr
+            ++ dropClass
+        )
         [ viewTile tile.tile False True ]
 
 

@@ -129,7 +129,7 @@ playedTurnToRackState turn rack =
 
 resetRackState : RackState -> RackState
 resetRackState r =
-    r |> Array.map (\t -> { t | placement = Nothing, sortIndex = 0 })
+    r |> Array.indexedMap (\i t -> { t | placement = Nothing, sortIndex = i })
 
 
 shuffleRack : RackState -> Array Int -> RackState
