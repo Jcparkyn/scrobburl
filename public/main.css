@@ -267,6 +267,8 @@ ul {
   height: var(--cell-size);
   border-radius: var(--tile-border-radius);
   touch-action: none;
+  position: relative;
+  z-index: 1;
 }
 
 .score-header {

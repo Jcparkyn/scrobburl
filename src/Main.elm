@@ -1160,20 +1160,32 @@ viewRack pm =
 
         endDropIndicator =
             Html.div
-                (style "flex-grow" "1" :: DragDrop.droppable DragDropMsg 999)
+                (style "position" "absolute"
+                    :: style "left" "50%"
+                    :: style "right" "0"
+                    :: style "top" "0"
+                    :: style "bottom" "0"
+                    :: DragDrop.droppable DragDropMsg 999
+                )
                 []
 
         startDropIndicator =
             Html.div
-                (style "flex-grow" "1" :: DragDrop.droppable DragDropMsg 998)
+                (style "position" "absolute"
+                    :: style "left" "0"
+                    :: style "right" "50%"
+                    :: style "top" "0"
+                    :: style "bottom" "0"
+                    :: DragDrop.droppable DragDropMsg 998
+                )
                 []
 
         ( first, rest ) =
             List.Extra.splitAt (Array.length pm.rack - 3) rackViews
     in
-    div [ class "rack" ]
+    div [ class "rack", style "position" "relative" ]
         -- The last 3 tiles go in a separate div, so that they wrap together
-        (startDropIndicator :: first ++ [ div [] rest, endDropIndicator ])
+        (startDropIndicator :: first ++ [ div [ style "position" "relative", style "z-index" "1" ] rest, endDropIndicator ])
 
 
 viewRackTile : PlayingModel -> Int -> RackTile -> Bool -> Bool -> Html Msg
