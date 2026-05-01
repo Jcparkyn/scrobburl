@@ -482,49 +482,53 @@ updatePlaying msg model =
                             model
 
                         Just ( dragId, dropId, _ ) ->
-                            let
-                                sortedRack =
-                                    model.rack
-                                        |> Array.toIndexedList
-                                        |> List.sortBy (\( _, t ) -> t.sortIndex)
-                                        |> List.map Tuple.first
+                            if dragId == dropId then
+                                model
 
-                                withoutDrag =
-                                    List.Extra.remove dragId sortedRack
-
-                                insertIndex =
-                                    if dropId == 999 then
-                                        List.length withoutDrag
-                                    else if dropId == 998 then
-                                        0
-                                    else
-                                        List.Extra.elemIndex dropId withoutDrag
-                                            |> Maybe.withDefault (List.length withoutDrag)
-
-                                ( before, after ) =
-                                    List.Extra.splitAt insertIndex withoutDrag
-
-                                newOrder =
-                                    before ++ (dragId :: after)
-
-                                newSortIndices =
-                                    newOrder
-                                        |> List.indexedMap (\sortIndex originalIndex -> ( originalIndex, sortIndex ))
-
-                                newRack =
-                                    List.foldl
-                                        (\( originalIndex, newSortIndex ) currentRack ->
-                                            case Array.get originalIndex currentRack of
-                                                Just t ->
-                                                    Array.set originalIndex { t | sortIndex = newSortIndex } currentRack
-
-                                                Nothing ->
-                                                    currentRack
-                                        )
+                            else
+                                let
+                                    sortedRack =
                                         model.rack
-                                        newSortIndices
-                            in
-                            { model | rack = newRack }
+                                            |> Array.toIndexedList
+                                            |> List.sortBy (\( _, t ) -> t.sortIndex)
+                                            |> List.map Tuple.first
+
+                                    withoutDrag =
+                                        List.Extra.remove dragId sortedRack
+
+                                    insertIndex =
+                                        if dropId == 999 then
+                                            List.length withoutDrag
+                                        else if dropId == 998 then
+                                            0
+                                        else
+                                            List.Extra.elemIndex dropId withoutDrag
+                                                |> Maybe.withDefault (List.length withoutDrag)
+
+                                    ( before, after ) =
+                                        List.Extra.splitAt insertIndex withoutDrag
+
+                                    newOrder =
+                                        before ++ (dragId :: after)
+
+                                    newSortIndices =
+                                        newOrder
+                                            |> List.indexedMap (\sortIndex originalIndex -> ( originalIndex, sortIndex ))
+
+                                    newRack =
+                                        List.foldl
+                                            (\( originalIndex, newSortIndex ) currentRack ->
+                                                case Array.get originalIndex currentRack of
+                                                    Just t ->
+                                                        Array.set originalIndex { t | sortIndex = newSortIndex } currentRack
+
+                                                    Nothing ->
+                                                        currentRack
+                                            )
+                                            model.rack
+                                            newSortIndices
+                                in
+                                { model | rack = newRack }
             in
             ( { newModel | dragDrop = newDragDrop }, Cmd.none )
 
