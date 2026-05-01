@@ -137,11 +137,11 @@ getCellContents model point =
                 previewTile =
                     model.rack
                         |> Array.toIndexedList
-                        |> List.filter (\(_, tile) -> tile.placement == Just point)
+                        |> List.filter (\( _, tile ) -> tile.placement == Just point)
                         |> List.head
             in
             case previewTile of
-                Just (i, tile) ->
+                Just ( i, tile ) ->
                     Preview { tile = tile.tile, rackIndex = i }
 
                 _ ->
@@ -506,8 +506,10 @@ updatePlaying msg model =
                                             insertIndex =
                                                 if dropRackId == 999 then
                                                     List.length withoutDrag
+
                                                 else if dropRackId == 998 then
                                                     0
+
                                                 else
                                                     List.Extra.elemIndex dropRackId withoutDrag
                                                         |> Maybe.withDefault (List.length withoutDrag)
@@ -541,7 +543,14 @@ updatePlaying msg model =
                                     let
                                         rackWithoutConflict =
                                             model.rack
-                                                |> Array.map (\t -> if t.placement == Just dropPoint then { t | placement = Nothing } else t)
+                                                |> Array.map
+                                                    (\t ->
+                                                        if t.placement == Just dropPoint then
+                                                            { t | placement = Nothing }
+
+                                                        else
+                                                            t
+                                                    )
 
                                         newRack =
                                             rackWithoutConflict
@@ -974,7 +983,7 @@ viewSubmitDialog outcome pm =
                 , a
                     [ href
                         (Url.Builder.relative []
-                            [ Url.Builder.string "state" (encodeUrlState (modelToUrlModel pm)) ]
+                            [ Url.Builder.string "s" (encodeUrlState (modelToUrlModel pm)) ]
                         )
                     , target "blank"
                     , style "font-size" "1.5em"
@@ -1167,19 +1176,21 @@ viewRack pm =
                 |> List.sortBy (\( _, t ) -> t.sortIndex)
 
         rackViews =
-            List.indexedMap (\viewIndex ( originalIndex, t ) ->
-                let
-                    isLastTile =
-                        viewIndex == Array.length pm.rack - 1
+            List.indexedMap
+                (\viewIndex ( originalIndex, t ) ->
+                    let
+                        isLastTile =
+                            viewIndex == Array.length pm.rack - 1
 
-                    isEndDropTarget =
-                        isLastTile && DragDrop.getDropId pm.dragDrop == Just (DropRack 999)
+                        isEndDropTarget =
+                            isLastTile && DragDrop.getDropId pm.dragDrop == Just (DropRack 999)
 
-                    isStartDropTarget =
-                        viewIndex == 0 && DragDrop.getDropId pm.dragDrop == Just (DropRack 998)
-                in
-                viewRackTile pm originalIndex t isEndDropTarget isStartDropTarget
-            ) sortedRack
+                        isStartDropTarget =
+                            viewIndex == 0 && DragDrop.getDropId pm.dragDrop == Just (DropRack 998)
+                    in
+                    viewRackTile pm originalIndex t isEndDropTarget isStartDropTarget
+                )
+                sortedRack
 
         endDropIndicator =
             Html.div
@@ -1316,8 +1327,8 @@ viewCell point state =
     in
     div
         ([ onClick (Select point)
-        , class "cell"
-        , classList <|
+         , class "cell"
+         , classList <|
             if state.contents == Empty then
                 [ ( "cell-2w", state.multiplier.word == 2 )
                 , ( "cell-3w", state.multiplier.word == 3 )
@@ -1330,7 +1341,9 @@ viewCell point state =
 
             else
                 [ ( "cell-drop-target", state.isDropTarget ) ]
-        ] ++ dropAttr)
+         ]
+            ++ dropAttr
+        )
         [ case ( state.contents, state.state ) of
             ( Empty, Inactive ) ->
                 text ""
@@ -1351,7 +1364,8 @@ viewCell point state =
 
             ( Preview { tile, rackIndex }, _ ) ->
                 let
-                    dragAttr = DragDrop.draggable DragDropMsg rackIndex
+                    dragAttr =
+                        DragDrop.draggable DragDropMsg rackIndex
                 in
                 div dragAttr [ viewTile tile False True ]
         ]
