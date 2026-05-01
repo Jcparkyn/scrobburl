@@ -361,3 +361,19 @@ ul {
   border-radius: 2px;
   pointer-events: none;
 }
+
+.cell-drop-target {
+  outline: 3px solid var(--col-primary);
+  outline-offset: -3px;
+  border-radius: 3px;
+  background-color: rgba(254, 197, 60, 0.18);
+}
+
+/* Make preview tiles on the board draggable-looking */
+.cell .preview-tile {
+  cursor: grab;
+}
+
+.cell .preview-tile:active {
+  cursor: grabbing;
+}

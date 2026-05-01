@@ -64,6 +64,11 @@ subscriptions _ =
 -- MODEL
 
 
+type DropTarget
+    = DropRack Int
+    | DropBoard Point
+
+
 type Model
     = Playing PlayingModel
 
@@ -86,7 +91,7 @@ type alias PlayingModel =
     , submitDialogState : SubmitDialogState
     , gameOver : Bool
     , history : List { moveOutcome : MoveOutcome }
-    , dragDrop : DragDrop.Model Int Int
+    , dragDrop : DragDrop.Model Int DropTarget
     }
 
 
@@ -131,13 +136,13 @@ getCellContents model point =
             let
                 previewTile =
                     model.rack
-                        |> Array.toList
-                        |> List.filter (\tile -> tile.placement == Just point)
+                        |> Array.toIndexedList
+                        |> List.filter (\(_, tile) -> tile.placement == Just point)
                         |> List.head
             in
             case previewTile of
-                Just tile ->
-                    Preview tile.tile
+                Just (i, tile) ->
+                    Preview { tile = tile.tile, rackIndex = i }
 
                 _ ->
                     Empty
@@ -262,7 +267,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | HandleKeyboardEvent KeyboardEvent
-    | DragDropMsg (DragDrop.Msg Int Int)
+    | DragDropMsg (DragDrop.Msg Int DropTarget)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -482,53 +487,67 @@ updatePlaying msg model =
                             model
 
                         Just ( dragId, dropId, _ ) ->
-                            if dragId == dropId then
-                                model
+                            case dropId of
+                                DropRack dropRackId ->
+                                    if dragId == dropRackId then
+                                        model
 
-                            else
-                                let
-                                    sortedRack =
-                                        model.rack
-                                            |> Array.toIndexedList
-                                            |> List.sortBy (\( _, t ) -> t.sortIndex)
-                                            |> List.map Tuple.first
+                                    else
+                                        let
+                                            sortedRack =
+                                                model.rack
+                                                    |> Array.toIndexedList
+                                                    |> List.sortBy (\( _, t ) -> t.sortIndex)
+                                                    |> List.map Tuple.first
 
-                                    withoutDrag =
-                                        List.Extra.remove dragId sortedRack
+                                            withoutDrag =
+                                                List.Extra.remove dragId sortedRack
 
-                                    insertIndex =
-                                        if dropId == 999 then
-                                            List.length withoutDrag
-                                        else if dropId == 998 then
-                                            0
-                                        else
-                                            List.Extra.elemIndex dropId withoutDrag
-                                                |> Maybe.withDefault (List.length withoutDrag)
+                                            insertIndex =
+                                                if dropRackId == 999 then
+                                                    List.length withoutDrag
+                                                else if dropRackId == 998 then
+                                                    0
+                                                else
+                                                    List.Extra.elemIndex dropRackId withoutDrag
+                                                        |> Maybe.withDefault (List.length withoutDrag)
 
-                                    ( before, after ) =
-                                        List.Extra.splitAt insertIndex withoutDrag
+                                            ( before, after ) =
+                                                List.Extra.splitAt insertIndex withoutDrag
 
-                                    newOrder =
-                                        before ++ (dragId :: after)
+                                            newOrder =
+                                                before ++ (dragId :: after)
 
-                                    newSortIndices =
-                                        newOrder
-                                            |> List.indexedMap (\sortIndex originalIndex -> ( originalIndex, sortIndex ))
+                                            newSortIndices =
+                                                newOrder
+                                                    |> List.indexedMap (\sortIndex originalIndex -> ( originalIndex, sortIndex ))
 
-                                    newRack =
-                                        List.foldl
-                                            (\( originalIndex, newSortIndex ) currentRack ->
-                                                case Array.get originalIndex currentRack of
-                                                    Just t ->
-                                                        Array.set originalIndex { t | sortIndex = newSortIndex } currentRack
+                                            newRack =
+                                                List.foldl
+                                                    (\( originalIndex, newSortIndex ) currentRack ->
+                                                        case Array.get originalIndex currentRack of
+                                                            Just t ->
+                                                                Array.set originalIndex { t | sortIndex = newSortIndex } currentRack
 
-                                                    Nothing ->
-                                                        currentRack
-                                            )
+                                                            Nothing ->
+                                                                currentRack
+                                                    )
+                                                    model.rack
+                                                    newSortIndices
+                                        in
+                                        { model | rack = newRack }
+
+                                DropBoard dropPoint ->
+                                    let
+                                        rackWithoutConflict =
                                             model.rack
-                                            newSortIndices
-                                in
-                                { model | rack = newRack }
+                                                |> Array.map (\t -> if t.placement == Just dropPoint then { t | placement = Nothing } else t)
+
+                                        newRack =
+                                            rackWithoutConflict
+                                                |> updateElement dragId (\t -> { t | placement = Just dropPoint })
+                                    in
+                                    { model | rack = newRack, selectedCell = Nothing }
             in
             ( { newModel | dragDrop = newDragDrop }, Cmd.none )
 
@@ -1154,10 +1173,10 @@ viewRack pm =
                         viewIndex == Array.length pm.rack - 1
 
                     isEndDropTarget =
-                        isLastTile && DragDrop.getDropId pm.dragDrop == Just 999
+                        isLastTile && DragDrop.getDropId pm.dragDrop == Just (DropRack 999)
 
                     isStartDropTarget =
-                        viewIndex == 0 && DragDrop.getDropId pm.dragDrop == Just 998
+                        viewIndex == 0 && DragDrop.getDropId pm.dragDrop == Just (DropRack 998)
                 in
                 viewRackTile pm originalIndex t isEndDropTarget isStartDropTarget
             ) sortedRack
@@ -1169,7 +1188,7 @@ viewRack pm =
                     :: style "right" "0"
                     :: style "top" "0"
                     :: style "bottom" "0"
-                    :: DragDrop.droppable DragDropMsg 999
+                    :: DragDrop.droppable DragDropMsg (DropRack 999)
                 )
                 []
 
@@ -1180,7 +1199,7 @@ viewRack pm =
                     :: style "right" "50%"
                     :: style "top" "0"
                     :: style "bottom" "0"
-                    :: DragDrop.droppable DragDropMsg 998
+                    :: DragDrop.droppable DragDropMsg (DropRack 998)
                 )
                 []
 
@@ -1200,10 +1219,10 @@ viewRackTile pm index tile isEndDropTarget isStartDropTarget =
                 []
 
             else
-                DragDrop.draggable DragDropMsg index ++ DragDrop.droppable DragDropMsg index
+                DragDrop.draggable DragDropMsg index ++ DragDrop.droppable DragDropMsg (DropRack index)
 
         dropClass =
-            if DragDrop.getDropId pm.dragDrop == Just index then
+            if DragDrop.getDropId pm.dragDrop == Just (DropRack index) then
                 [ class "drop-target" ]
 
             else if isEndDropTarget then
@@ -1253,6 +1272,7 @@ getCellProps model point =
     , contents =
         getCellContents model point
     , multiplier = Array2D.get point.x point.y Checker.multipliers |> Maybe.withDefault (Multiplier 1 1)
+    , isDropTarget = DragDrop.getDropId model.dragDrop == Just (DropBoard point)
     }
 
 
@@ -1285,8 +1305,17 @@ getCellState model point =
 
 viewCell : Point -> CellProps -> Html Msg
 viewCell point state =
+    let
+        dropAttr =
+            case state.contents of
+                Placed _ ->
+                    []
+
+                _ ->
+                    DragDrop.droppable DragDropMsg (DropBoard point)
+    in
     div
-        [ onClick (Select point)
+        ([ onClick (Select point)
         , class "cell"
         , classList <|
             if state.contents == Empty then
@@ -1296,11 +1325,12 @@ viewCell point state =
                 , ( "cell-3l", state.multiplier.letter == 3 )
                 , ( "cell-origin", point == Point (gridSize // 2) (gridSize // 2) )
                 , ( "cell-selected", state.state == Selected )
+                , ( "cell-drop-target", state.isDropTarget )
                 ]
 
             else
-                []
-        ]
+                [ ( "cell-drop-target", state.isDropTarget ) ]
+        ] ++ dropAttr)
         [ case ( state.contents, state.state ) of
             ( Empty, Inactive ) ->
                 text ""
@@ -1319,8 +1349,11 @@ viewCell point state =
             ( Placed { tile, justPlaced }, _ ) ->
                 viewTile tile justPlaced False
 
-            ( Preview tile, _ ) ->
-                viewTile tile False True
+            ( Preview { tile, rackIndex }, _ ) ->
+                let
+                    dragAttr = DragDrop.draggable DragDropMsg rackIndex
+                in
+                div dragAttr [ viewTile tile False True ]
         ]
 
 

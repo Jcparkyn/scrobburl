@@ -29,7 +29,7 @@ type CellSelection
 
 type CellContents
     = Empty
-    | Preview Tile
+    | Preview { tile : Tile, rackIndex : Int }
     | Placed { tile : Tile, justPlaced : Bool }
 
 
@@ -41,6 +41,7 @@ type alias CellProps =
     { state : CellSelection
     , contents : CellContents
     , multiplier : Multiplier
+    , isDropTarget : Bool
     }
 
 
@@ -88,17 +89,17 @@ getAllCellContents model =
                                 Placed { tile = tile, justPlaced = False }
                     )
     in
-    Array.foldl
-        (\previewTile board ->
+    List.foldl
+        (\(rackIndex, previewTile) board ->
             case previewTile.placement of
                 Nothing ->
                     board
 
                 Just p ->
-                    Array2D.set p.x p.y (Preview previewTile.tile) board
+                    Array2D.set p.x p.y (Preview { tile = previewTile.tile, rackIndex = rackIndex }) board
         )
         initialBoard
-        model.rack
+        (model.rack |> Array.toIndexedList)
 
 
 type alias Placement =

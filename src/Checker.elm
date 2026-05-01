@@ -195,7 +195,7 @@ scoreLine wordlist line =
                 |> List.map
                     (\cell ->
                         case cell of
-                            ( mult, Preview tile ) ->
+                            ( mult, Preview { tile } ) ->
                                 Just { tile = tile, isPreview = True, multiplier = mult }
 
                             ( mult, Placed { tile } ) ->
