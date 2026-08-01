@@ -263,6 +263,7 @@ type Msg
     | ShuffleRack
     | NewRackOrder (List Int)
     | OpenDialog String
+    | PassTurn
     | ShareUrl { useClipboard : Bool }
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
@@ -581,6 +582,11 @@ updatePlaying msg model =
         OpenDialog dialogId ->
             ( { model | submitDialogState = { clipboardSuccess = False } }, openDialog dialogId )
 
+        PassTurn ->
+            ( { model | rack = resetRackState model.rack, submitDialogState = { clipboardSuccess = False } }
+            , openDialog "submitDialog"
+            )
+
         LinkClicked urlRequest ->
             case urlRequest of
                 Browser.Internal url ->
@@ -851,6 +857,7 @@ view model =
             { body =
                 [ viewSubmitDialog moveOutcome pm
                 , viewInfoDialog pm
+                , viewOptionsDialog pm
                 , viewUnseenTilesDialog (getUnseenTiles pm)
                 , main_ []
                     [ viewScoreHeader pm
@@ -936,6 +943,34 @@ viewInfoDialog pm =
         ]
 
 
+viewOptionsDialog : PlayingModel -> Html Msg
+viewOptionsDialog pm =
+    dialog
+        [ id "optionsDialog" ]
+        [ h1 [] [ text "Options" ]
+        , div [ style "display" "flex", style "flex-direction" "column", style "gap" "12px", style "margin-bottom" "20px" ]
+            [ Html.form []
+                [ button
+                    [ Html.Attributes.attribute "formmethod" "dialog"
+                    , onClick (OpenDialog "infoDialog")
+                    , style "width" "100%"
+                    ]
+                    [ text "How to play" ]
+                ]
+            , Html.form []
+                [ button
+                    [ Html.Attributes.attribute "formmethod" "dialog"
+                    , onClick PassTurn
+                    , style "width" "100%"
+                    ]
+                    [ text "Pass turn" ]
+                ]
+            ]
+        , div [ class "dialog-action-buttons" ]
+            [ viewCloseDialogButton [ text "Cancel" ] ]
+        ]
+
+
 viewSubmitDialog : MoveOutcome -> PlayingModel -> Html Msg
 viewSubmitDialog outcome pm =
     dialog
@@ -943,7 +978,11 @@ viewSubmitDialog outcome pm =
         [ h1 []
             [ text <|
                 if not outcome.gameOver then
-                    "Play turn"
+                    if outcome.checkerResult == NothingPlaced then
+                        "Pass turn"
+
+                    else
+                        "Play turn"
 
                 else
                     gameOverText outcome.selfScore outcome.opponentScore
@@ -1058,6 +1097,10 @@ moveSummaryText model outcome =
                 _ ->
                     text ""
 
+        NothingPlaced ->
+            span []
+                [ text <| model.opponent.name ++ " passed their turn." ]
+
         _ ->
             text ""
 
@@ -1080,6 +1123,9 @@ pageTitle pm =
                 ++ " for "
                 ++ String.fromInt score
                 ++ " points. "
+
+        NothingPlaced :: _ ->
+            "Scrobburl | " ++ pm.opponent.name ++ " passed their turn."
 
         _ ->
             "Scrobburl"
@@ -1150,12 +1196,12 @@ viewActionButtons outcome pm =
             , button [ onClick ShuffleRack, title "Shuffle rack", class "button-square" ]
                 [ Icons.shuffle ]
             , button
-                [ onClick (OpenDialog "infoDialog")
-                , title "About"
+                [ onClick (OpenDialog "optionsDialog")
+                , title "More options"
                 , class "button-square"
                 , style "margin-right" "auto"
                 ]
-                [ text "?" ]
+                [ Icons.moreHorizontal ]
             , button
                 [ onClick (OpenDialog "submitDialog")
                 , disabled (not outcome.isMoveValid)
