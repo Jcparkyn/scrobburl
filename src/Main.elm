@@ -459,7 +459,7 @@ getNextGameState wordlist turn state =
                 outcome =
                     { selfScore = state.nextPlayer.score
                     , opponentScore = state.lastPlayer.score
-                    , checkerResult = NothingPlaced
+                    , checkerResult = TilesSwapped (List.length rackIndices)
                     , isMoveValid = True
                     , gameOver = False
                     }
@@ -1279,6 +1279,10 @@ moveSummaryText model outcome =
             span []
                 [ text <| model.opponent.name ++ " passed their turn." ]
 
+        TilesSwapped count ->
+            span []
+                [ text <| model.opponent.name ++ " swapped " ++ String.fromInt count ++ " tile" ++ (if count == 1 then "" else "s") ++ "." ]
+
         _ ->
             text ""
 
@@ -1305,6 +1309,9 @@ pageTitle pm =
         NothingPlaced :: _ ->
             "Scrobburl | " ++ pm.opponent.name ++ " passed their turn."
 
+        (TilesSwapped count) :: _ ->
+            "Scrobburl | " ++ pm.opponent.name ++ " swapped " ++ String.fromInt count ++ " tile" ++ (if count == 1 then "" else "s") ++ "."
+
         _ ->
             "Scrobburl"
 
@@ -1324,6 +1331,14 @@ viewMoveOutcome : PlayingModel -> MoveOutcome -> Html Msg
 viewMoveOutcome model outcome =
     case outcome.checkerResult of
         NothingPlaced ->
+            case model.history of
+                lastTurn :: _ ->
+                    moveSummaryText model lastTurn.moveOutcome
+
+                _ ->
+                    text nbsp
+
+        TilesSwapped _ ->
             case model.history of
                 lastTurn :: _ ->
                     moveSummaryText model lastTurn.moveOutcome

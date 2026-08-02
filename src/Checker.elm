@@ -27,6 +27,7 @@ type CheckerResult
     | NotAnchored
     | NotInLine
     | NothingPlaced
+    | TilesSwapped Int
     | ValidPlacement { score : Int, words : List ScoreWordResult }
 
 
