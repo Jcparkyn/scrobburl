@@ -108,6 +108,7 @@ type alias Placement =
 
 type PlayedTurn
     = PlayedTurn (List Placement)
+    | SwappedTiles (List Int)
 
 
 playedTurnToRackState : PlayedTurn -> Array Tile -> RackState
@@ -126,6 +127,9 @@ playedTurnToRackState turn rack =
                         |> List.foldl updatePositions initialPositions
             in
             Array.Extra.map2 (RackTile 0) rack finalPositions
+
+        SwappedTiles _ ->
+            rack |> Array.indexedMap (\_ tile -> RackTile 0 tile Nothing)
 
 
 resetRackState : RackState -> RackState

@@ -92,6 +92,8 @@ type alias PlayingModel =
     , gameOver : Bool
     , history : List { moveOutcome : MoveOutcome }
     , dragDrop : DragDrop.Model Int DropTarget
+    , selectedSwapIndices : Set Int
+    , pendingSwap : Maybe (List Int)
     }
 
 
@@ -247,6 +249,8 @@ init flags url _ =
                 , gameOver = initialState.gameOver
                 , history = []
                 , dragDrop = DragDrop.init
+                , selectedSwapIndices = Set.empty
+                , pendingSwap = Nothing
                 }
             , Cmd.none
             )
@@ -263,6 +267,10 @@ type Msg
     | ShuffleRack
     | NewRackOrder (List Int)
     | OpenDialog String
+    | OpenSwapDialog
+    | ToggleSwapTile Int
+    | ConfirmSwap
+    | CancelSwap
     | PassTurn
     | ShareUrl { useClipboard : Bool }
     | LinkClicked Browser.UrlRequest
@@ -282,16 +290,25 @@ update msg model =
 modelToUrlModel : PlayingModel -> UrlState.UrlModel
 modelToUrlModel model =
     let
-        nextTurn =
-            model.rack
-                |> Array.toList
-                |> List.indexedMap
-                    (\index t ->
-                        t.placement |> Maybe.map (\placement -> { rackIndex = index, position = placement })
-                    )
-                |> List.filterMap (\x -> x)
+        thisTurn =
+            case model.pendingSwap of
+                Just swapIndices ->
+                    SwappedTiles swapIndices
+
+                Nothing ->
+                    let
+                        nextTurn =
+                            model.rack
+                                |> Array.toList
+                                |> List.indexedMap
+                                    (\index t ->
+                                        t.placement |> Maybe.map (\placement -> { rackIndex = index, position = placement })
+                                    )
+                                |> List.filterMap (\x -> x)
+                    in
+                    PlayedTurn nextTurn
     in
-    { turns = PlayedTurn nextTurn :: model.playedTurns
+    { turns = thisTurn :: model.playedTurns
     , initialSeed = model.initialSeed
     }
 
@@ -422,6 +439,44 @@ getNextGameState wordlist turn state =
             , history = { moveOutcome = outcome } :: state.history
             }
 
+        SwappedTiles rackIndices ->
+            let
+                swappedTiles =
+                    rackIndices
+                        |> List.filterMap (\i -> Array.get i state.nextPlayer.rack)
+
+                remainingRack =
+                    state.nextPlayer.rack
+                        |> Array.toList
+                        |> removeIfIndex (\i -> List.member i rackIndices)
+
+                bagWithSwapped =
+                    state.bag ++ swappedTiles
+
+                ( ( newTiles, newBag ), seed ) =
+                    Random.step (drawRandomTiles (List.length rackIndices) bagWithSwapped) state.seed
+
+                outcome =
+                    { selfScore = state.nextPlayer.score
+                    , opponentScore = state.lastPlayer.score
+                    , checkerResult = NothingPlaced
+                    , isMoveValid = True
+                    , gameOver = False
+                    }
+            in
+            { board = state.board
+            , nextPlayer = state.lastPlayer
+            , lastPlayer =
+                { rack = remainingRack ++ newTiles |> Array.fromList
+                , name = state.nextPlayer.name
+                , score = state.nextPlayer.score
+                }
+            , bag = newBag
+            , seed = seed
+            , gameOver = False
+            , history = { moveOutcome = outcome } :: state.history
+            }
+
 
 urlModelToModel : UrlState.UrlModel -> Flags -> Model
 urlModelToModel model flags =
@@ -466,6 +521,8 @@ urlModelToModel model flags =
         , gameOver = finalState.gameOver
         , history = finalState.history
         , dragDrop = DragDrop.init
+        , selectedSwapIndices = Set.empty
+        , pendingSwap = Nothing
         }
 
 
@@ -582,8 +639,43 @@ updatePlaying msg model =
         OpenDialog dialogId ->
             ( { model | submitDialogState = { clipboardSuccess = False } }, openDialog dialogId )
 
+        OpenSwapDialog ->
+            let
+                resetModel =
+                    withRackReset { model | pendingSwap = Nothing }
+            in
+            ( { resetModel
+                | selectedSwapIndices = Set.empty
+                , submitDialogState = { clipboardSuccess = False }
+              }
+            , openDialog "swapDialog"
+            )
+
+        ToggleSwapTile index ->
+            let
+                newSelected =
+                    if Set.member index model.selectedSwapIndices then
+                        Set.remove index model.selectedSwapIndices
+
+                    else
+                        Set.insert index model.selectedSwapIndices
+            in
+            ( { model | selectedSwapIndices = newSelected }, Cmd.none )
+
+        ConfirmSwap ->
+            ( { model
+                | pendingSwap = Just (Set.toList model.selectedSwapIndices)
+                , selectedSwapIndices = Set.empty
+                , submitDialogState = { clipboardSuccess = False }
+              }
+            , openDialog "submitDialog"
+            )
+
+        CancelSwap ->
+            ( { model | pendingSwap = Nothing, selectedSwapIndices = Set.empty }, Cmd.none )
+
         PassTurn ->
-            ( { model | rack = resetRackState model.rack, submitDialogState = { clipboardSuccess = False } }
+            ( { model | rack = resetRackState model.rack, pendingSwap = Nothing, submitDialogState = { clipboardSuccess = False } }
             , openDialog "submitDialog"
             )
 
@@ -858,6 +950,7 @@ view model =
                 [ viewSubmitDialog moveOutcome pm
                 , viewInfoDialog pm
                 , viewOptionsDialog pm
+                , viewSwapDialog pm
                 , viewUnseenTilesDialog (getUnseenTiles pm)
                 , main_ []
                     [ viewScoreHeader pm
@@ -960,6 +1053,14 @@ viewOptionsDialog pm =
             , Html.form []
                 [ button
                     [ Html.Attributes.attribute "formmethod" "dialog"
+                    , onClick OpenSwapDialog
+                    , style "width" "100%"
+                    ]
+                    [ text "Swap tiles" ]
+                ]
+            , Html.form []
+                [ button
+                    [ Html.Attributes.attribute "formmethod" "dialog"
                     , onClick PassTurn
                     , style "width" "100%"
                     ]
@@ -971,13 +1072,90 @@ viewOptionsDialog pm =
         ]
 
 
+viewSwapDialog : PlayingModel -> Html Msg
+viewSwapDialog pm =
+    let
+        numSelected =
+            Set.size pm.selectedSwapIndices
+
+        sortedRack =
+            pm.rack
+                |> Array.toIndexedList
+                |> List.sortBy (\( _, t ) -> t.sortIndex)
+    in
+    dialog
+        [ id "swapDialog" ]
+        [ h1 [] [ text "Swap tiles" ]
+        , p [] [ text "Select the tiles you want to swap with the bag:" ]
+        , div
+            [ class "rack"
+            , style "margin" "20px 0"
+            , style "justify-content" "center"
+            , style "gap" "8px"
+            ]
+            (List.map
+                (\( originalIndex, t ) ->
+                    let
+                        isSelected =
+                            Set.member originalIndex pm.selectedSwapIndices
+                    in
+                    button
+                        [ classList
+                            [ ( "rack-tile", True )
+                            , ( "swap-tile-selected", isSelected )
+                            ]
+                        , onClick (ToggleSwapTile originalIndex)
+                        , style "transition" "all 0.15s ease"
+                        ]
+                        [ viewTile t.tile False True ]
+                )
+                sortedRack
+            )
+        , p [ style "text-align" "center", style "margin-bottom" "16px" ]
+            [ text
+                (if numSelected == 0 then
+                    "No tiles selected"
+
+                 else
+                    String.fromInt numSelected
+                        ++ " tile"
+                        ++ (if numSelected == 1 then
+                                ""
+
+                            else
+                                "s"
+                           )
+                        ++ " selected"
+                )
+            ]
+        , div [ class "dialog-action-buttons" ]
+            [ Html.form []
+                [ button
+                    [ Html.Attributes.attribute "formmethod" "dialog"
+                    , onClick ConfirmSwap
+                    , disabled (numSelected == 0)
+                    ]
+                    [ text "Swap" ]
+                ]
+            , viewCloseDialogButton [ text "Cancel" ]
+            ]
+        ]
+
+
 viewSubmitDialog : MoveOutcome -> PlayingModel -> Html Msg
 viewSubmitDialog outcome pm =
+    let
+        isSwap =
+            pm.pendingSwap /= Nothing
+    in
     dialog
         [ id "submitDialog" ]
         [ h1 []
             [ text <|
-                if not outcome.gameOver then
+                if isSwap then
+                    "Swap tiles"
+
+                else if not outcome.gameOver then
                     if outcome.checkerResult == NothingPlaced then
                         "Pass turn"
 
@@ -994,7 +1172,7 @@ viewSubmitDialog outcome pm =
             ]
         , p []
             [ text <|
-                if not outcome.gameOver then
+                if isSwap || not outcome.gameOver then
                     "Send a link to your opponent so they can play the next turn."
 
                 else

@@ -271,6 +271,11 @@ ul {
   z-index: 1;
 }
 
+.swap-tile-selected {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
 .score-header {
   font-family: 'System Mono';
   font-size: 1.2em;

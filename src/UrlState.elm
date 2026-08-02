@@ -6,7 +6,7 @@ import Bytes
 import Bytes.Decode as DB
 import Bytes.Decode.Extra
 import Bytes.Encode as EB
-import Data exposing (Placement, PlayedTurn(..))
+import Data exposing (PlayedTurn(..))
 import Flate exposing (inflate)
 import Json.Decode as DJ exposing (Decoder)
 import List.Extra
@@ -176,6 +176,11 @@ decodeModelBytes =
         (decodeListBytes (DB.unsignedInt16 end) decodeTurnBytes)
 
 
+swapSentinel : Int
+swapSentinel =
+    0xFF
+
+
 encodeTurnBytes : PlayedTurn -> EB.Encoder
 encodeTurnBytes turn =
     case turn of
@@ -190,26 +195,50 @@ encodeTurnBytes turn =
                     )
                 |> encodeListBytes EB.unsignedInt8
 
+        SwappedTiles rackIndices ->
+            rackIndices
+                |> List.map
+                    (\rackIndex ->
+                        EB.sequence
+                            [ EB.unsignedInt8 rackIndex
+                            , EB.unsignedInt8 swapSentinel
+                            ]
+                    )
+                |> encodeListBytes EB.unsignedInt8
+
 
 decodeTurnBytes : DB.Decoder PlayedTurn
 decodeTurnBytes =
     let
-        decodePlacement : DB.Decoder Placement
-        decodePlacement =
-            DB.map2
-                (\a b ->
-                    { rackIndex = a
-                    , position =
-                        { x = Bitwise.and b 0x0F
-                        , y = shiftRightBy 4 b
-                        }
-                    }
-                )
-                DB.unsignedInt8
-                DB.unsignedInt8
+        decodeRawItem : DB.Decoder ( Int, Int )
+        decodeRawItem =
+            DB.map2 Tuple.pair DB.unsignedInt8 DB.unsignedInt8
+
+        rawItemsToTurn : List ( Int, Int ) -> PlayedTurn
+        rawItemsToTurn items =
+            case items of
+                [] ->
+                    PlayedTurn []
+
+                ( _, pos ) :: _ ->
+                    if pos == swapSentinel then
+                        SwappedTiles (List.map Tuple.first items)
+
+                    else
+                        items
+                            |> List.map
+                                (\( rackIndex, b ) ->
+                                    { rackIndex = rackIndex
+                                    , position =
+                                        { x = Bitwise.and b 0x0F
+                                        , y = shiftRightBy 4 b
+                                        }
+                                    }
+                                )
+                            |> PlayedTurn
     in
-    decodeListBytes DB.unsignedInt8 decodePlacement
-        |> DB.map PlayedTurn
+    decodeListBytes DB.unsignedInt8 decodeRawItem
+        |> DB.map rawItemsToTurn
 
 
 encodeListBytes : (Int -> EB.Encoder) -> List EB.Encoder -> EB.Encoder
